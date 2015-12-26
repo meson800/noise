@@ -39,4 +39,8 @@ void Log::writeToLogThreadUnsafe()
     std::ofstream logFile = std::ofstream(logFilename, std::ios::app);
     logFile << "\n";
     logFile.close();
+	if (writeToConsole)
+	{
+		std::cout << "\n";
+	}
 }
