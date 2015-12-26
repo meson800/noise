@@ -4,12 +4,12 @@
 
 #include <RakPeerInterface.h>
 
-Network::Network(unsigned int listenPort) : port(listenPort)
+Network::Network(unsigned int listenPort) : port(listenPort), started(false)
 {
 	Log::writeToLog(Log::INFO, "Listening port set to ", port, "\n");
 }
 
-Network::Network() : port(50000)
+Network::Network() : port(50000), started(false)
 {
 	Log::writeToLog(Log::L_DEBUG, "No listening port provided, using default port");
 	ourNode = RakNet::RakPeerInterface::GetInstance();
@@ -17,6 +17,10 @@ Network::Network() : port(50000)
 
 void Network::startNode()
 {
+	if (started)
+	{
+		throw NetworkStartupException("Networking already started");
+	}
 	Log::writeToLog(Log::INFO, "Starting networking...");
 	Log::writeToLog(Log::L_DEBUG, "Networking will be started with ", MAX_CONNECTIONS, " maxiumum connections...");
 	RakNet::SocketDescriptor sd(port, 0);
@@ -25,11 +29,19 @@ void Network::startNode()
 	{
 		throwStartupExceptions(ourNode->Startup(MAX_CONNECTIONS, &sd, 1));
 		Log::writeToLog(Log::INFO, "Network startup done");
+		started = true;
 	}
 	catch (NetworkStartupException const &e)
 	{
 		Log::writeToLog(Log::ERR, "Couldn't start networking. Startup error:", e.what());
 	}
+}
+
+void Network::shutdownNode()
+{
+	Log::writeToLog(Log::INFO, "Shutting down networking...");
+	RakNet::RakPeerInterface::DestroyInstance(ourNode);
+	started = false;
 }
 
 void Network::connectToNode(std::string address, unsigned int port)
