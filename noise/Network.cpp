@@ -3,16 +3,22 @@
 #include "Log.h"
 
 #include <RakPeerInterface.h>
+#include <MessageIdentifiers.h>
 
 Network::Network(unsigned int listenPort) : port(listenPort), started(false)
 {
 	Log::writeToLog(Log::INFO, "Listening port set to ", port, "\n");
+	mux.lock();
+	ourNode = RakNet::RakPeerInterface::GetInstance();
+	mux.unlock();
 }
 
-Network::Network() : port(50000), started(false)
+Network::Network() : port(SERVER_PORT), started(false)
 {
 	Log::writeToLog(Log::L_DEBUG, "No listening port provided, using default port");
+	mux.lock();
 	ourNode = RakNet::RakPeerInterface::GetInstance();
+	mux.unlock();
 }
 
 void Network::startNode()
@@ -23,6 +29,7 @@ void Network::startNode()
 	}
 	Log::writeToLog(Log::INFO, "Starting networking...");
 	Log::writeToLog(Log::L_DEBUG, "Networking will be started with ", MAX_CONNECTIONS, " maxiumum connections...");
+	ourNode->SetMaximumIncomingConnections(MAX_CONNECTIONS);
 	RakNet::SocketDescriptor sd(port, 0);
 
 	try
@@ -33,19 +40,104 @@ void Network::startNode()
 	}
 	catch (NetworkStartupException const &e)
 	{
-		Log::writeToLog(Log::ERR, "Couldn't start networking. Startup error:", e.what());
+		Log::writeToLog(Log::FATAL, "Couldn't start networking. Startup error:", e.what());
 	}
 }
 
 void Network::shutdownNode()
 {
 	Log::writeToLog(Log::INFO, "Shutting down networking...");
+	mux.lock();
+	ourNode->Shutdown(10 * 1000);
 	RakNet::RakPeerInterface::DestroyInstance(ourNode);
 	started = false;
+	mux.unlock();
 }
 
-void Network::connectToNode(std::string address, unsigned int port)
+void Network::connectToNode(std::string const &address)
 {
+	connectToNode(address, SERVER_PORT);
+}
+
+void Network::connectToNode(std::string const &address, unsigned int port)
+{
+	try
+	{
+		mux.lock();
+		throwConnectionExceptions(ourNode->Connect(address.c_str(), port, 0, 0));
+		mux.unlock();
+	}
+	catch (NetworkConnectionException const &e)
+	{
+		Log::writeToLog(Log::ERR, "Couldn't connect to node. Error:", e.what());
+		mux.unlock();
+	}
+}
+
+bool Network::handlePacket()
+{
+	mux.lock();
+	if (!started)
+	{
+		mux.unlock();
+		return false;
+	}
+	RakNet::Packet* packet = ourNode->Receive();
+	mux.unlock();
+	if (packet == 0)
+	{
+		//no more packets to handle
+		return false;
+	}
+
+	//now handle the packets
+	switch (packet->data[0])
+	{
+	case ID_REMOTE_DISCONNECTION_NOTIFICATION:
+		Log::writeToLog(Log::INFO, "System ", packet->guid.ToString(), " has disconnected");
+		break;
+
+	case ID_REMOTE_CONNECTION_LOST:
+		Log::writeToLog(Log::INFO, "System ", packet->guid.ToString(), " has lost the connection");
+		break;
+
+	case ID_REMOTE_NEW_INCOMING_CONNECTION:
+		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " has connected");
+		break;
+
+	case ID_CONNECTION_REQUEST_ACCEPTED:
+		Log::writeToLog(Log::INFO, "Successfully connected to system ", packet->guid.ToString());
+		break;
+
+	case ID_NEW_INCOMING_CONNECTION:
+		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " is trying to connect");
+		break;
+
+	case ID_NO_FREE_INCOMING_CONNECTIONS:
+		Log::writeToLog(Log::INFO, "Couldn't connect to system ", packet->systemAddress.ToString(), ", too many nodes connected");
+		break;
+
+	case ID_DISCONNECTION_NOTIFICATION:
+		Log::writeToLog(Log::INFO, "Disconnected from system ", packet->guid.ToString());
+		break;
+
+	case ID_CONNECTION_LOST:
+		Log::writeToLog(Log::INFO, "Connection lost from system ", packet ->guid.ToString());
+		break;
+
+	default:
+		Log::writeToLog(Log::L_DEBUG, "Got packet with identifier ", packet->data[0]);
+		break;
+	}
+	return true;
+}
+
+bool Network::isRunning()
+{
+	mux.lock();
+	bool result = started;
+	mux.unlock();
+	return result;
 }
 
 void Network::throwStartupExceptions(const RakNet::StartupResult & result)
@@ -102,6 +194,40 @@ void Network::throwStartupExceptions(const RakNet::StartupResult & result)
 
 	default:
 		throw NetworkStartupException("Unknown error");
+		break;
+	}
+}
+
+void Network::throwConnectionExceptions(RakNet::ConnectionAttemptResult const &result)
+{
+	switch (result)
+	{
+	case RakNet::ConnectionAttemptResult::CONNECTION_ATTEMPT_STARTED:
+		//good, no error
+		break;
+
+	case RakNet::ConnectionAttemptResult::ALREADY_CONNECTED_TO_ENDPOINT:
+		throw NetworkConnectionException("Already connected to this node");
+		break;
+
+	case RakNet::ConnectionAttemptResult::CANNOT_RESOLVE_DOMAIN_NAME:
+		throw NetworkConnectionException("Cannot resolve domain name");
+		break;
+
+	case RakNet::ConnectionAttemptResult::CONNECTION_ATTEMPT_ALREADY_IN_PROGRESS:
+		throw NetworkConnectionException("A connection attempt is already in progress");
+		break;
+
+	case RakNet::ConnectionAttemptResult::INVALID_PARAMETER:
+		throw NetworkConnectionException("Invalid connection parameter");
+		break;
+
+	case RakNet::ConnectionAttemptResult::SECURITY_INITIALIZATION_FAILED:
+		throw NetworkConnectionException("Security initalization failed");
+		break;
+
+	default:
+		throw NetworkConnectionException("Unknown connection error");
 		break;
 	}
 }
