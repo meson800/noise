@@ -31,3 +31,15 @@ class NetworkConnectionException : public NetworkException
 public:
 	NetworkConnectionException(const std::string &err) : NetworkException(err) {}
 };
+
+class OpensslException : public std::runtime_error
+{
+public:
+	OpensslException(const std::string &err) : runtime_error(err) {}
+};
+
+class KeyGenerationException : public OpensslException
+{
+public:
+	KeyGenerationException(const std::string &err) : OpensslException(err) {}
+};
