@@ -24,6 +24,20 @@ void LocalNoiseInterface::startNetworking(int portNumber)
 	network = new Network(portNumber);
 	network->startNode();
 	mux.unlock();
+
+	//now loop until we need to stop
+	while (true)
+	{
+		mux.lock();
+		if (network->isRunning())
+			network->handlePacket();
+		else
+		{
+			mux.unlock();
+			return;
+		}
+		mux.unlock();
+	}
 }
 
 void LocalNoiseInterface::stopNetworking(void)

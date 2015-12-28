@@ -11,7 +11,7 @@ public:
 	//----------Networking functions-----------------
 	//-----------------------------------------------
 
-	//Starts the networking dameon
+	//Starts the networking dameon, this function never returns
 	virtual void startNetworking(int portNumber) = 0;
 	//Stops the networking dameon
 	virtual void stopNetworking(void) = 0;

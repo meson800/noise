@@ -30,11 +30,12 @@ constexpr char hexmap[] = { '0', '1', '2', '3', '4', '5', '6', '7',
 
 std::string Fingerprint::toString()
 {
-	std::string s(data.size() * 3, ' ');
+	std::string s(data.size() * 3 - 1, ' ');
 	for (unsigned int i = 0; i < data.size(); ++i) {
 		s[3 * i] = hexmap[(data[i] & 0xF0) >> 4];
 		s[3 * i + 1] = hexmap[data[i] & 0x0F];
-		s[3 * i + 2] = ':';
+		if (i != data.size() - 1)
+			s[3 * i + 2] = ':';
 	}
 	return s;
 }

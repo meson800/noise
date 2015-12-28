@@ -24,12 +24,6 @@ int main()
 	//Init interface
 	CLI cli(&inter);
 	//start interface
-	std::thread interfaceThread(&CLI::runInterface, &cli);
-	while (cli.isRunning())
-	{
-		inter.handlePacket();
-	}
-	//wait for interface to finish cleaning up
-	interfaceThread.join();
+	cli.runInterface();
 	return 0;
 }

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <thread>
 
 namespace openssl
 {
@@ -33,7 +34,7 @@ void CLI::runInterface()
 	}
 	//start networking
 	std::cout << "Starting networking...\n";
-	interface->startNetworking(port);
+	std::thread networkThread(&NoiseInterface::startNetworking, interface,port);
 	std::cout << "Network started\n";
 	//runs recursively until stopped
 	while (true)
@@ -70,6 +71,7 @@ void CLI::runInterface()
 		{
 			//shutdown network and close
 			interface->stopNetworking();
+			networkThread.join();
 			mut.lock();
 			running = false;
 			mut.unlock();

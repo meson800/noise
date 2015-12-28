@@ -30,6 +30,8 @@ std::vector<unsigned char> CryptoHelpers::oslPublicKeyToBytes(openssl::EVP_PKEY 
 	std::vector<unsigned char> bytes(rawBytes, rawBytes + usedLength);
 	//free the array
 	delete[] rawBytes;
+	//free the key
+	openssl::RSA_free(rsaKey);
 
 	return bytes;
 }
