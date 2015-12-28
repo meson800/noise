@@ -131,6 +131,7 @@
   <ItemGroup>
     <ClCompile Include="CLI.cpp" />
     <ClCompile Include="Crypto.cpp" />
+    <ClCompile Include="CryptoHelpers.cpp" />
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Network.cpp" />
@@ -138,6 +139,7 @@
   <ItemGroup>
     <ClInclude Include="CLI.h" />
     <ClInclude Include="Crypto.h" />
+    <ClInclude Include="CryptoHelpers.h" />
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="Globals.h" />
     <ClInclude Include="Log.h" />

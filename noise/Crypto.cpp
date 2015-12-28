@@ -1,5 +1,6 @@
 #include "Crypto.h"
 #include "Exceptions.h"
+#include "Log.h"
 
 namespace openssl {
 #include <openssl/rand.h>
@@ -14,6 +15,7 @@ namespace openssl {
 
 Crypto::Crypto()
 {
+	Log::writeToLog(Log::INFO, "Initalizing crypto...");
 	//init openssl
 	openssl::ERR_load_crypto_strings();
 	openssl::OpenSSL_add_all_algorithms();
@@ -28,10 +30,12 @@ Crypto::Crypto()
 		throw OpensslException("Can't initalize key generation");
 	if (!openssl::EVP_PKEY_CTX_set_rsa_keygen_bits(keyContext, 4096))
 		throw OpensslException("Can't set number of bits in RSA key");
+	Log::writeToLog(Log::INFO, "Done initalizing crypto");
 }
 
 void Crypto::generateKeypair(openssl::EVP_PKEY * key)
 {
+	Log::writeToLog(Log::INFO, "Generating RSA keypair");
 	if (!keyContext)
 		throw KeyGenerationException("Can't generate keypair, no key context");
 	if (!openssl::EVP_PKEY_keygen(keyContext, &key))

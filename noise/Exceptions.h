@@ -43,3 +43,9 @@ class KeyGenerationException : public OpensslException
 public:
 	KeyGenerationException(const std::string &err) : OpensslException(err) {}
 };
+
+class KeyConversionException : public OpensslException
+{
+public:
+	KeyConversionException(const std::string &err) : OpensslException(err) {}
+};
