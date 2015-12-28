@@ -4,6 +4,11 @@
 #include "Crypto.h"
 #include "Exceptions.h"
 
+#include <RakPeerInterface.h>
+#include <MessageIdentifiers.h>
+#include "Messages.h"
+#include <BitStream.h>
+
 LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0)
 {
 	//we can init crypto at this point
@@ -62,7 +67,51 @@ void LocalNoiseInterface::handlePacket(void)
 {
 	mux.lock();
 	if (network && network->isRunning())
-		network->handlePacket();
+	{
+		RakNet::Packet* packet = network->handlePacket();
+		if (packet)
+		{
+			switch (packet->data[0])
+			{
+			case ID_REMOTE_CONNECTION_LOST:
+			case ID_REMOTE_DISCONNECTION_NOTIFICATION:
+			case ID_DISCONNECTION_NOTIFICATION:
+			case ID_CONNECTION_LOST:
+				//remove from our list of nodes
+				if (nodes.count(packet->guid))
+					nodes.erase(packet->guid);
+				break;
+
+			case ID_REMOTE_NEW_INCOMING_CONNECTION:
+			case ID_CONNECTION_REQUEST_ACCEPTED:
+			case ID_NEW_INCOMING_CONNECTION:
+				//add to our list of nodes
+				nodes[packet->guid] = std::vector<Fingerprint>();
+				break;
+
+			case ID_OFFER_PUBKEY:
+			{
+				RakNet::BitStream bsIn(packet->data, packet->length, false);
+				bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+				//now we can read into a fingerprint
+				std::vector<unsigned char> fingerprintData;
+				unsigned char cur = 0;
+				while (bsIn.Read(cur))
+				{
+					fingerprintData.push_back(cur);
+				}
+				//now create a fingerprint
+				Fingerprint fingerprint = Fingerprint(fingerprintData);
+				break;
+			}
+
+			default:
+				break;
+			}
+			network->deallocatePacket(packet);
+		}
+	}
+
 	mux.unlock();
 }
 
@@ -75,6 +124,17 @@ void LocalNoiseInterface::connectToNode(const std::string & address, int port)
 
 }
 
+void LocalNoiseInterface::advertiseOurPublicKey(const Fingerprint& fingerprint)
+{
+	mux.lock();
+	RakNet::BitStream bs;
+	bs.Write((RakNet::MessageID)ID_OFFER_PUBKEY);
+	for (unsigned int i = 0; i < fingerprint.data.size(); ++i)
+		bs.Write(fingerprint.data[i]);
+	network->sendBitStream(&bs, RakNet::UNASSIGNED_RAKNET_GUID, true);
+	mux.unlock();
+}
+
 Fingerprint LocalNoiseInterface::generateNewEncryptionKey()
 {
 	mux.lock();
@@ -85,7 +145,7 @@ Fingerprint LocalNoiseInterface::generateNewEncryptionKey()
 		//get fingerprint of new key
 		Fingerprint fingerprint = Fingerprint(newKey);
 		//insert into our key map
-		encryptionKeys[fingerprint] = newKey;
+		ourEncryptionKeys[fingerprint] = newKey;
 		mux.unlock();
 		return fingerprint;
 	}
@@ -98,7 +158,7 @@ unsigned int LocalNoiseInterface::numEncryptionKeys()
 {
 	unsigned int result = 0;
 	mux.lock();
-	result = encryptionKeys.size();
+	result = ourEncryptionKeys.size();
 	mux.unlock();
 	return result;
 }

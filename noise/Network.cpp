@@ -3,6 +3,7 @@
 #include "Log.h"
 
 #include <RakPeerInterface.h>
+#include <RakNetTypes.h>
 #include <MessageIdentifiers.h>
 
 Network::Network(unsigned int listenPort) : port(listenPort), started(false)
@@ -74,7 +75,7 @@ void Network::connectToNode(std::string const &address, unsigned int port)
 	}
 }
 
-bool Network::handlePacket()
+RakNet::Packet* Network::handlePacket()
 {
 	mux.lock();
 	if (!started)
@@ -87,7 +88,7 @@ bool Network::handlePacket()
 	if (packet == 0)
 	{
 		//no more packets to handle
-		return false;
+		return 0;
 	}
 
 	//now handle the packets
@@ -95,22 +96,27 @@ bool Network::handlePacket()
 	{
 	case ID_REMOTE_DISCONNECTION_NOTIFICATION:
 		Log::writeToLog(Log::INFO, "System ", packet->guid.ToString(), " has disconnected");
+		return packet;
 		break;
 
 	case ID_REMOTE_CONNECTION_LOST:
 		Log::writeToLog(Log::INFO, "System ", packet->guid.ToString(), " has lost the connection");
+		return packet;
 		break;
 
 	case ID_REMOTE_NEW_INCOMING_CONNECTION:
 		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " has connected");
+		return packet;
 		break;
 
 	case ID_CONNECTION_REQUEST_ACCEPTED:
 		Log::writeToLog(Log::INFO, "Successfully connected to system ", packet->guid.ToString());
+		return packet;
 		break;
 
 	case ID_NEW_INCOMING_CONNECTION:
 		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " is trying to connect");
+		return packet;
 		break;
 
 	case ID_NO_FREE_INCOMING_CONNECTIONS:
@@ -119,17 +125,33 @@ bool Network::handlePacket()
 
 	case ID_DISCONNECTION_NOTIFICATION:
 		Log::writeToLog(Log::INFO, "Disconnected from system ", packet->guid.ToString());
+		return packet;
 		break;
 
 	case ID_CONNECTION_LOST:
 		Log::writeToLog(Log::INFO, "Connection lost from system ", packet ->guid.ToString());
+		return packet;
 		break;
 
 	default:
 		Log::writeToLog(Log::L_DEBUG, "Got packet with identifier ", packet->data[0]);
+		return packet;
 		break;
 	}
-	return true;
+	ourNode->DeallocatePacket(packet);
+	return 0;
+}
+
+void Network::sendBitStream(const RakNet::BitStream * stream, const RakNet::AddressOrGUID & system, bool broadcast)
+{
+	mux.lock();
+	ourNode->Send(stream, MEDIUM_PRIORITY, RELIABLE, 0, system, broadcast);
+	mux.unlock();
+}
+
+void Network::deallocatePacket(RakNet::Packet* packet)
+{
+	ourNode->DeallocatePacket(packet);
 }
 
 bool Network::isRunning()

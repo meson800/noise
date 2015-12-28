@@ -1,6 +1,8 @@
 #pragma once
 
 #include "NoiseInterface.h"
+#include "Fingerprint.h"
+#include <RakNetTypes.h>
 
 class Network;
 class Crypto;
@@ -28,10 +30,10 @@ public:
 	void stopNetworking(void) override;
 	//checks if running
 	bool isRunning(void) override;
-	//Handles a single packet in the queue
-	void handlePacket(void) override;
 	//Connects to a node
 	void connectToNode(const std::string& address, int port = SERVER_PORT) override;
+	//Advertises one of our encryption public keys
+	void advertiseOurPublicKey(const Fingerprint& fingerprint) override;
 
 	//---------Cryptography Functions----------------
 	//-----------------------------------------------
@@ -42,10 +44,15 @@ public:
 	unsigned int numEncryptionKeys() override;
 
 private:
+	//Handles a single packet in the queue
+	void handlePacket(void);
+
 	std::mutex mux;
 
 	Network* network;
 	Crypto* crypto;
 
-	std::map<Fingerprint, openssl::EVP_PKEY*> encryptionKeys;
+	std::map<Fingerprint, openssl::EVP_PKEY*> ourEncryptionKeys;
+	std::map<Fingerprint, openssl::EVP_PKEY*> otherEncryptionKeys;
+	std::map<RakNet::RakNetGUID, std::vector<Fingerprint>> nodes;
 };

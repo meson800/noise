@@ -21,6 +21,12 @@ Fingerprint::Fingerprint(openssl::EVP_PKEY * key)
 	delete[](tempArray);
 }
 
+Fingerprint::Fingerprint(std::vector<unsigned char> _data) : data(_data)
+{
+	if (data.size() != SHA_DIGEST_LENGTH)
+		throw std::runtime_error("Fingerprint data is not the right size");
+}
+
 
 //hexmap and code in toString taken from
 //http://codereview.stackexchange.com/questions/78535/converting-array-of-bytes-to-the-hex-string-representation

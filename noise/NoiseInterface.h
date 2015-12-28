@@ -17,10 +17,10 @@ public:
 	virtual void stopNetworking(void) = 0;
 	//checks if running
 	virtual bool isRunning(void) = 0;
-	//Handles a single packet in the queue
-	virtual void handlePacket(void) = 0;
 	//Connects to a node
 	virtual void connectToNode(const std::string& address, int port = SERVER_PORT) = 0;
+	//Advertises one of our encryption public keys
+	virtual void advertiseOurPublicKey(const Fingerprint& fingerprint) = 0;
 
 	//---------Cryptography Functions----------------
 	//-----------------------------------------------

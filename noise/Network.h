@@ -8,6 +8,9 @@ namespace RakNet
 	class RakPeerInterface;
 	enum StartupResult;
 	enum ConnectionAttemptResult;
+	struct Packet;
+	class BitStream;
+	struct AddressOrGUID;
 }
 
 class Network
@@ -25,8 +28,12 @@ public:
 	void connectToNode(std::string const &address, unsigned int port);
 	//explicitly connect to node using default port
 	void connectToNode(std::string const &address);
-	//Handles one packet from other nodes, returns true if a packet was handled, returns false if not
-	bool handlePacket();
+	//Handles one packet from other nodes, returns true if a packet if we want the interface to handle it
+	RakNet::Packet* handlePacket();
+	//Sends an arbitrary bitstream
+	void sendBitStream(const RakNet::BitStream *stream, const RakNet::AddressOrGUID& system, bool broadcast);
+	//Deallocates a packet, needed if we return one out of handlePacket
+	void deallocatePacket(RakNet::Packet*);
 	//Returns if networking is active
 	bool isRunning();
 
