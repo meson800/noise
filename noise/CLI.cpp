@@ -1,12 +1,19 @@
 #include "CLI.h"
 #include "Globals.h"
 #include "Network.h"
+#include "Crypto.h"
 
 #include <iostream>
 #include <sstream>
 #include <string>
 
-CLI::CLI(Network * _network) : network(_network) , shouldStop(false){}
+namespace openssl
+{
+	struct evp_pkey_st;
+	typedef evp_pkey_st EVP_PKEY;
+}
+
+CLI::CLI(Network * _network, Crypto* _crypto) : network(_network) , crypto(_crypto), shouldStop(false){}
 
 void CLI::runInterface()
 {
@@ -45,6 +52,13 @@ void CLI::runInterface()
 			//shutdown network and close
 			network->shutdownNode();
 			return;
+		}
+		else if (input.size() == 1 && input.c_str()[0] == 'k')
+		{
+			//create new key
+			openssl::EVP_PKEY* key = 0;
+			crypto->generateKeypair(&key);
+			std::cout << "Sucessefully created key " << (void*)key << "\n";
 		}
 	}
 }

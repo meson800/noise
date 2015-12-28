@@ -33,11 +33,11 @@ Crypto::Crypto()
 	Log::writeToLog(Log::INFO, "Done initalizing crypto");
 }
 
-void Crypto::generateKeypair(openssl::EVP_PKEY * key)
+void Crypto::generateKeypair(openssl::EVP_PKEY ** key)
 {
 	Log::writeToLog(Log::INFO, "Generating RSA keypair");
 	if (!keyContext)
 		throw KeyGenerationException("Can't generate keypair, no key context");
-	if (!openssl::EVP_PKEY_keygen(keyContext, &key))
+	if (!openssl::EVP_PKEY_keygen(keyContext, key))
 		throw KeyGenerationException("Key generation failed");
 }

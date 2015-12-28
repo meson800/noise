@@ -7,6 +7,7 @@
 #include "Network.h"
 #include "Globals.h"
 #include "CLI.h"
+#include "Crypto.h"
 
 int main()
 {
@@ -29,8 +30,10 @@ int main()
 	Network network(port);
 	network.startNode();
 
+	Crypto crypto;
+
 	//Init interface
-	CLI cli(&network);
+	CLI cli(&network, &crypto);
 	//start interface
 	std::thread interfaceThread(&CLI::runInterface, &cli);
 	while (network.isRunning())
