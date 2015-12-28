@@ -1,6 +1,7 @@
 #include "Network.h"
 #include "Globals.h"
 #include "Log.h"
+#include "Messages.h"
 
 #include <RakPeerInterface.h>
 #include <RakNetTypes.h>
@@ -130,6 +131,11 @@ RakNet::Packet* Network::handlePacket()
 
 	case ID_CONNECTION_LOST:
 		Log::writeToLog(Log::INFO, "Connection lost from system ", packet ->guid.ToString());
+		return packet;
+		break;
+
+	case ID_OFFER_PUBKEY:
+		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " is advertising a public key");
 		return packet;
 		break;
 

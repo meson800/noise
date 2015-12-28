@@ -17,7 +17,7 @@ public:
 	Fingerprint(openssl::EVP_PKEY* key);
 	Fingerprint(std::vector<unsigned char> _data);
 	//Returns fingerprint in human readable form
-	std::string toString();
+	std::string toString() const;
 
 	//operators
 	Fingerprint& operator=(const Fingerprint &other);

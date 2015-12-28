@@ -34,7 +34,7 @@ Fingerprint::Fingerprint(std::vector<unsigned char> _data) : data(_data)
 constexpr char hexmap[] = { '0', '1', '2', '3', '4', '5', '6', '7',
 '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
-std::string Fingerprint::toString()
+std::string Fingerprint::toString() const
 {
 	std::string s(data.size() * 3 - 1, ' ');
 	for (unsigned int i = 0; i < data.size(); ++i) {

@@ -8,6 +8,7 @@
 #include <MessageIdentifiers.h>
 #include "Messages.h"
 #include <BitStream.h>
+#include "Log.h"
 
 LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0)
 {
@@ -35,13 +36,15 @@ void LocalNoiseInterface::startNetworking(int portNumber)
 	{
 		mux.lock();
 		if (network->isRunning())
-			network->handlePacket();
+		{
+			mux.unlock();
+			handlePacket();
+		}
 		else
 		{
 			mux.unlock();
 			return;
 		}
-		mux.unlock();
 	}
 }
 
@@ -102,6 +105,7 @@ void LocalNoiseInterface::handlePacket(void)
 				}
 				//now create a fingerprint
 				Fingerprint fingerprint = Fingerprint(fingerprintData);
+				Log::writeToLog(Log::INFO, "Recieved fingerprint ", fingerprint.toString());
 				break;
 			}
 
@@ -126,6 +130,7 @@ void LocalNoiseInterface::connectToNode(const std::string & address, int port)
 
 void LocalNoiseInterface::advertiseOurPublicKey(const Fingerprint& fingerprint)
 {
+	Log::writeToLog(Log::INFO, "Advertising public key ", fingerprint.toString());
 	mux.lock();
 	RakNet::BitStream bs;
 	bs.Write((RakNet::MessageID)ID_OFFER_PUBKEY);

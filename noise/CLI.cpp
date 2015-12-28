@@ -81,6 +81,7 @@ void CLI::runInterface()
 		{
 			//create new key
 			Fingerprint fingerprint = interface->generateNewEncryptionKey();
+			interface->advertiseOurPublicKey(fingerprint);
 			std::cout << "Sucessefully created key " << fingerprint.toString() << "\n";
 		}
 	}
