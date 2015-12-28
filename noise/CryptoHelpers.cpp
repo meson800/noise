@@ -16,8 +16,14 @@ std::vector<unsigned char> CryptoHelpers::oslPublicKeyToBytes(openssl::EVP_PKEY 
 	if (!rsaKey)
 		throw KeyConversionException("Failed to extract key from given EVP_PKEY");
 	unsigned char* rawBytes = new unsigned char[1024];
+	unsigned char* tempP = rawBytes;
+	//NOTE TO PROGRAMMER
+	//Openssl CHANGES the pointer that you give it!!!
+	//You MUST give it a temporary pointer that is initally equal to rawBytes!
+	//Openssl increments the pointer it's given after it's done filling
+	//so you need to keep your original pointer around
 	int usedLength;
-	if (!(usedLength = openssl::i2d_RSAPublicKey(rsaKey, &rawBytes)))
+	if (!(usedLength = openssl::i2d_RSAPublicKey(rsaKey, &tempP)))
 		throw KeyConversionException("Failed to convert RSA key into bytes");
 	Log::writeToLog(Log::L_DEBUG, "Converted key to ", usedLength, " bytes");
 

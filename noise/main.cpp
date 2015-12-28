@@ -25,7 +25,7 @@ int main()
 	CLI cli(&inter);
 	//start interface
 	std::thread interfaceThread(&CLI::runInterface, &cli);
-	while (interfaceThread.joinable())
+	while (cli.isRunning())
 	{
 		inter.handlePacket();
 	}

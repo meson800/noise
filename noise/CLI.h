@@ -12,11 +12,14 @@ public:
 	CLI(NoiseInterface* _interface);
 	//Run interface (usually inside seperate thread)
 	void runInterface();
+	//checks if interface is still running
+	bool isRunning();
 	//Stops the interface (from external, main thread)
 	void stopInterface();
 
 private:
 	bool shouldStop;
+	bool running;
 	NoiseInterface* interface;
 	std::mutex mut;
 };

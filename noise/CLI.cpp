@@ -13,10 +13,13 @@ namespace openssl
 	typedef evp_pkey_st EVP_PKEY;
 }
 
-CLI::CLI(NoiseInterface* _interface): interface(_interface), shouldStop(false){}
+CLI::CLI(NoiseInterface* _interface): interface(_interface), shouldStop(false), running(true) {}
 
 void CLI::runInterface()
 {
+	mut.lock();
+	running = true;
+	mut.unlock();
 	std::cout << "---Noise Command Line Interface---\n";
 
 	std::cout << "Enter a port number (50000):";
@@ -67,6 +70,9 @@ void CLI::runInterface()
 		{
 			//shutdown network and close
 			interface->stopNetworking();
+			mut.lock();
+			running = false;
+			mut.unlock();
 			return;
 		}
 		else if (input.size() == 1 && input.c_str()[0] == 'k')
@@ -76,6 +82,18 @@ void CLI::runInterface()
 			std::cout << "Sucessefully created key " << fingerprint.toString() << "\n";
 		}
 	}
+	mut.lock();
+	running = false;
+	mut.unlock();
+}
+
+bool CLI::isRunning()
+{
+	bool result = false;
+	mut.lock();
+	result = running;
+	mut.unlock();
+	return result;
 }
 
 void CLI::stopInterface()
