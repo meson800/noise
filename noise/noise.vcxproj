@@ -133,6 +133,7 @@
     <ClCompile Include="Crypto.cpp" />
     <ClCompile Include="CryptoHelpers.cpp" />
     <ClCompile Include="Fingerprint.cpp" />
+    <ClCompile Include="LocalNoiseInterface.cpp" />
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Network.cpp" />
@@ -144,6 +145,7 @@
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="Fingerprint.h" />
     <ClInclude Include="Globals.h" />
+    <ClInclude Include="LocalNoiseInterface.h" />
     <ClInclude Include="Log.h" />
     <ClInclude Include="Messages.h" />
     <ClInclude Include="Network.h" />

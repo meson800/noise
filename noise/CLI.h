@@ -3,14 +3,13 @@
 #include <mutex>
 
 //forward definitions
-class Network;
-class Crypto;
+class NoiseInterface;
 
 class CLI
 {
 public:
-	//Initalize with a network interface
-	CLI(Network* _network, Crypto* _crypto);
+	//Initalize with interface to Noise client
+	CLI(NoiseInterface* _interface);
 	//Run interface (usually inside seperate thread)
 	void runInterface();
 	//Stops the interface (from external, main thread)
@@ -18,7 +17,6 @@ public:
 
 private:
 	bool shouldStop;
-	Network* network;
-	Crypto* crypto;
+	NoiseInterface* interface;
 	std::mutex mut;
 };

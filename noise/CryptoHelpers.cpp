@@ -15,7 +15,7 @@ std::vector<unsigned char> CryptoHelpers::oslPublicKeyToBytes(openssl::EVP_PKEY 
 	openssl::RSA* rsaKey = openssl::EVP_PKEY_get1_RSA(key);
 	if (!rsaKey)
 		throw KeyConversionException("Failed to extract key from given EVP_PKEY");
-	unsigned char* rawBytes = (unsigned char*)malloc(1024 * 10);
+	unsigned char* rawBytes = new unsigned char[1024];
 	int usedLength;
 	if (!(usedLength = openssl::i2d_RSAPublicKey(rsaKey, &rawBytes)))
 		throw KeyConversionException("Failed to convert RSA key into bytes");
@@ -23,7 +23,7 @@ std::vector<unsigned char> CryptoHelpers::oslPublicKeyToBytes(openssl::EVP_PKEY 
 
 	std::vector<unsigned char> bytes(rawBytes, rawBytes + usedLength);
 	//free the array
-	free(rawBytes);
+	delete[] rawBytes;
 
 	return bytes;
 }

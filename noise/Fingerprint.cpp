@@ -13,10 +13,12 @@ Fingerprint::Fingerprint(openssl::EVP_PKEY * key)
 	//Get public key of key
 	std::vector<unsigned char> bytes = CryptoHelpers::oslPublicKeyToBytes(key);
 	
-	unsigned char * tempArray = (unsigned char*)malloc(SHA_DIGEST_LENGTH);
+	unsigned char * tempArray = new unsigned char[SHA_DIGEST_LENGTH];
 	openssl::SHA1(bytes.data(), bytes.size(), tempArray);
 
 	data = std::vector<unsigned char>(tempArray, tempArray + SHA_DIGEST_LENGTH);
+
+	delete[](tempArray);
 }
 
 

@@ -55,3 +55,9 @@ class FingerprintComparisonException : public std::runtime_error
 public:
 	FingerprintComparisonException(const std::string &err) : runtime_error(err) {}
 };
+
+class InterfaceException : public std::runtime_error
+{
+public:
+	InterfaceException(const std::string &err) : runtime_error(err) {}
+};

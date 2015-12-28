@@ -1,7 +1,7 @@
 #include "CLI.h"
 #include "Globals.h"
-#include "Network.h"
-#include "Crypto.h"
+#include "NoiseInterface.h"
+#include "Fingerprint.h"
 
 #include <iostream>
 #include <sstream>
@@ -13,13 +13,29 @@ namespace openssl
 	typedef evp_pkey_st EVP_PKEY;
 }
 
-CLI::CLI(Network * _network, Crypto* _crypto) : network(_network) , crypto(_crypto), shouldStop(false){}
+CLI::CLI(NoiseInterface* _interface): interface(_interface), shouldStop(false){}
 
 void CLI::runInterface()
 {
+	std::cout << "---Noise Command Line Interface---\n";
+
+	std::cout << "Enter a port number (50000):";
+	std::string portNum;
+	std::getline(std::cin, portNum);
+	int port = SERVER_PORT;
+	if (portNum.size() > 0)
+	{
+		std::istringstream ss(portNum);
+		ss >> port;
+	}
+	//start networking
+	std::cout << "Starting networking...\n";
+	interface->startNetworking(port);
+	std::cout << "Network started\n";
 	//runs recursively until stopped
 	while (true)
 	{
+		std::cout << ">";
 		mut.lock();
 		if (shouldStop)
 			return;
@@ -44,21 +60,20 @@ void CLI::runInterface()
 			}
 
 			std::cout << "Connecting...\n";
-			network->connectToNode(address, portNum);
+			interface->connectToNode(address, portNum);
 
 		}
 		else if (input.size() == 1 && input.c_str()[0] == 'x')
 		{
 			//shutdown network and close
-			network->shutdownNode();
+			interface->stopNetworking();
 			return;
 		}
 		else if (input.size() == 1 && input.c_str()[0] == 'k')
 		{
 			//create new key
-			openssl::EVP_PKEY* key = 0;
-			crypto->generateKeypair(&key);
-			std::cout << "Sucessefully created key " << (void*)key << "\n";
+			Fingerprint fingerprint = interface->generateNewEncryptionKey();
+			std::cout << "Sucessefully created key " << fingerprint.toString() << "\n";
 		}
 	}
 }
