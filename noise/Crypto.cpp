@@ -33,6 +33,12 @@ Crypto::Crypto()
 	Log::writeToLog(Log::INFO, "Done initalizing crypto");
 }
 
+Crypto::~Crypto()
+{
+	//free contexts
+	openssl::EVP_PKEY_CTX_free(keyContext);
+}
+
 void Crypto::generateKeypair(openssl::EVP_PKEY ** key)
 {
 	Log::writeToLog(Log::INFO, "Generating RSA keypair");

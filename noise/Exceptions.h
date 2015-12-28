@@ -49,3 +49,9 @@ class KeyConversionException : public OpensslException
 public:
 	KeyConversionException(const std::string &err) : OpensslException(err) {}
 };
+
+class FingerprintComparisonException : public std::runtime_error
+{
+public:
+	FingerprintComparisonException(const std::string &err) : runtime_error(err) {}
+};
