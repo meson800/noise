@@ -34,6 +34,8 @@ public:
 	void connectToNode(const std::string& address, int port = SERVER_PORT) override;
 	//Advertises one of our encryption public keys
 	void advertiseOurPublicKey(const Fingerprint& fingerprint) override;
+	//Sends a challenge to a server with a associated public key to prove the server has the private key
+	void sendChallenge(RakNet::RakNetGUID system, const Fingerprint& fingerprint) override;
 
 	//---------Cryptography Functions----------------
 	//-----------------------------------------------
@@ -58,5 +60,7 @@ private:
 
 	std::map<Fingerprint, openssl::EVP_PKEY*> ourEncryptionKeys;
 	std::map<Fingerprint, openssl::EVP_PKEY*> otherEncryptionKeys;
+	std::map<Fingerprint, RakNet::RakNetGUID> verifiedSystems;
+	std::map<Fingerprint, std::vector<unsigned char>> liveChallenges;
 	std::map<RakNet::RakNetGUID, std::vector<Fingerprint>> nodes;
 };

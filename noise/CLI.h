@@ -20,6 +20,6 @@ public:
 private:
 	bool shouldStop;
 	bool running;
-	NoiseInterface* interface;
+	NoiseInterface* inter;
 	std::mutex mut;
 };

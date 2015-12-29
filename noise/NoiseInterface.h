@@ -2,8 +2,7 @@
 
 #include "Globals.h"
 #include "Fingerprint.h"
-
-
+#include <RakNetTypes.h>
 
 class NoiseInterface
 {
@@ -21,6 +20,8 @@ public:
 	virtual void connectToNode(const std::string& address, int port = SERVER_PORT) = 0;
 	//Advertises one of our encryption public keys
 	virtual void advertiseOurPublicKey(const Fingerprint& fingerprint) = 0;
+	//Sends a challenge to a server with a associated public key to prove the server has the private key
+	virtual void sendChallenge(RakNet::RakNetGUID system, const Fingerprint& fingerprint) = 0;
 
 	//---------Cryptography Functions----------------
 	//-----------------------------------------------

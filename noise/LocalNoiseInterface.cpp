@@ -11,6 +11,11 @@
 #include <BitStream.h>
 #include "Log.h"
 
+namespace openssl
+{
+#include <openssl\rand.h>
+}
+
 LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0)
 {
 	//we can init crypto at this point
@@ -205,6 +210,34 @@ void LocalNoiseInterface::advertiseOurPublicKey(const Fingerprint& fingerprint)
 	mux.lock();
 	network->sendBitStream(&bs, RakNet::UNASSIGNED_RAKNET_GUID, true);
 	mux.unlock();
+}
+
+void LocalNoiseInterface::sendChallenge(RakNet::RakNetGUID system, const Fingerprint & fingerprint)
+{
+	Log::writeToLog(Log::INFO, "Challenging system ", system.ToString(), " with pubkey ", fingerprint.toString());
+	//Generating random 64 byte challenge
+	unsigned char * randomChallenge = new unsigned char[64];
+	if (1 != openssl::RAND_bytes(randomChallenge, 64))
+		throw OpensslException("Couldn't get random bytes for pubkey challenge");
+	//start bitstream
+	RakNet::BitStream bs;
+	bs.Write((RakNet::MessageID)ID_CHALLENGE_PUBKEY);
+	fingerprint.toBitStream(bs);
+	//Now generate a vector out of it and make it a challenge
+	std::vector<unsigned char> challenge;
+	for (unsigned int i = 0; i < 64; ++i)
+	{
+		challenge.push_back(randomChallenge[i]);
+		bs.Write(randomChallenge[i]);
+	}
+	//Send the challenge along
+	mux.lock();
+	network->sendBitStream(&bs, system, false);
+	mux.unlock();
+
+	//and set our challenge into live challenges
+	liveChallenges[fingerprint] = challenge;
+
 }
 
 Fingerprint LocalNoiseInterface::generateNewEncryptionKey()

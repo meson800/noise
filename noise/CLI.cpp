@@ -14,7 +14,7 @@ namespace openssl
 	typedef evp_pkey_st EVP_PKEY;
 }
 
-CLI::CLI(NoiseInterface* _interface): interface(_interface), shouldStop(false), running(true) {}
+CLI::CLI(NoiseInterface* _interface): inter(_interface), shouldStop(false), running(true) {}
 
 void CLI::runInterface()
 {
@@ -34,7 +34,7 @@ void CLI::runInterface()
 	}
 	//start networking
 	std::cout << "Starting networking...\n";
-	std::thread networkThread(&NoiseInterface::startNetworking, interface,port);
+	std::thread networkThread(&NoiseInterface::startNetworking, inter,port);
 	std::cout << "Network started\n";
 	//runs recursively until stopped
 	while (true)
@@ -64,13 +64,13 @@ void CLI::runInterface()
 			}
 
 			std::cout << "Connecting...\n";
-			interface->connectToNode(address, portNum);
+			inter->connectToNode(address, portNum);
 
 		}
 		else if (input.size() == 1 && input.c_str()[0] == 'x')
 		{
 			//shutdown network and close
-			interface->stopNetworking();
+			inter->stopNetworking();
 			networkThread.join();
 			mut.lock();
 			running = false;
@@ -80,8 +80,8 @@ void CLI::runInterface()
 		else if (input.size() == 1 && input.c_str()[0] == 'k')
 		{
 			//create new key
-			Fingerprint fingerprint = interface->generateNewEncryptionKey();
-			interface->advertiseOurPublicKey(fingerprint);
+			Fingerprint fingerprint = inter->generateNewEncryptionKey();
+			inter->advertiseOurPublicKey(fingerprint);
 			std::cout << "Sucessefully created key " << fingerprint.toString() << "\n";
 		}
 	}
