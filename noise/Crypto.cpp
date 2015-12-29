@@ -47,3 +47,53 @@ void Crypto::generateKeypair(openssl::EVP_PKEY ** key)
 	if (!openssl::EVP_PKEY_keygen(keyContext, key))
 		throw KeyGenerationException("Key generation failed");
 }
+
+std::vector<unsigned char> Crypto::signMessage(openssl::EVP_PKEY * key, std::vector<unsigned char> message)
+{
+	openssl::EVP_MD_CTX* digestContext = 0;
+	//create and init the context
+	if (!(digestContext = openssl::EVP_MD_CTX_create()))
+		throw OpensslException("Couldn't create message signing context");
+	if (1 != openssl::EVP_DigestSignInit(digestContext, NULL, openssl::EVP_sha256(), NULL, key))
+		throw OpensslException("Couldn't init message signing");
+
+	//sign message
+	if (1 != openssl::EVP_DigestSignUpdate(digestContext, message.data(), message.size()))
+		throw OpensslException("Couldn't sign message");
+
+	//call finalization with buffer = null to get length of signature
+	unsigned int signatureLength = 0;
+	if (1 != openssl::EVP_DigestSignFinal(digestContext, NULL, &signatureLength))
+		throw OpensslException("Couldn't finalize signature");
+
+	//allocate memory for signature
+	unsigned char* tempBuffer = new unsigned char[signatureLength];
+	//and get the signature
+	if (1 != openssl::EVP_DigestSignFinal(digestContext, tempBuffer, &signatureLength))
+		throw OpensslException("Couldn't extract signature");
+
+	//Now init result
+	std::vector<unsigned char> result(tempBuffer, tempBuffer + signatureLength);
+	return result;
+}
+
+bool Crypto::verifySignature(openssl::EVP_PKEY * key, std::vector<unsigned char> message, std::vector<unsigned char> signature)
+{
+	openssl::EVP_MD_CTX* digestContext = 0;
+	//create and init the context
+	if (!(digestContext = openssl::EVP_MD_CTX_create()))
+		throw OpensslException("Couldn't create message signing context");
+	//Init verification operation
+	if (1 != openssl::EVP_DigestSignInit(digestContext, NULL, openssl::EVP_sha256(), NULL, key))
+		throw OpensslException("Couldn't start the verification process");
+	if (1 != openssl::EVP_DigestSignUpdate(digestContext, message.data(), message.size()))
+		throw OpensslException("Couldn't verify message");
+
+	//verify signature
+	size_t size = signature.size();
+	if (1 == openssl::EVP_DigestSignFinal(digestContext, signature.data(), &size))
+	{
+		return true;
+	}
+	return false;
+}

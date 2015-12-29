@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 namespace openssl
 {
 	struct evp_pkey_ctx_st;
@@ -16,6 +18,8 @@ public:
 	Crypto();
 	~Crypto();
 	void generateKeypair(openssl::EVP_PKEY** key);
+	std::vector<unsigned char> signMessage(openssl::EVP_PKEY* key, std::vector<unsigned char> message);
+	bool verifySignature(openssl::EVP_PKEY* key, std::vector<unsigned char> message, std::vector<unsigned char> signature);
 
 private:
 	openssl::EVP_PKEY_CTX* keyContext;
