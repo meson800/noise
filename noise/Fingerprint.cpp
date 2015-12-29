@@ -26,8 +26,10 @@ Fingerprint::Fingerprint(openssl::EVP_PKEY * key)
 Fingerprint::Fingerprint(RakNet::BitStream & bs)
 {
 	unsigned char cur = 0;
-	while (bs.Read(cur))
+	for (unsigned int i = 0; i < SHA_DIGEST_LENGTH; ++i)
 	{
+		if (bs.Read(cur) == 0)
+			break;
 		data.push_back(cur);
 	}
 	if (data.size() != SHA_DIGEST_LENGTH)
