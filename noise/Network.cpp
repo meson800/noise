@@ -139,6 +139,16 @@ RakNet::Packet* Network::handlePacket()
 		return packet;
 		break;
 
+	case ID_REQUEST_PUBKEY:
+		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " is requesting a public key");
+		return packet;
+		break;
+
+	case ID_SEND_PUBKEY:
+		Log::writeToLog(Log::INFO, "Recieved a publickey from system ", packet->systemAddress.ToString());
+		return packet;
+		break;
+
 	default:
 		Log::writeToLog(Log::L_DEBUG, "Got packet with identifier ", packet->data[0]);
 		return packet;

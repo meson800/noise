@@ -46,6 +46,10 @@ public:
 private:
 	//Handles a single packet in the queue
 	void handlePacket(void);
+	//Requests a publickey from a remote system
+	void requestPublickey(const Fingerprint& fingerprint, RakNet::RakNetGUID system);
+	//Sends a publickey if we have it
+	void sendPublickey(const Fingerprint& fingerprint, RakNet::RakNetGUID system);
 
 	std::mutex mux;
 

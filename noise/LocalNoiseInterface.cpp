@@ -2,6 +2,7 @@
 
 #include "Network.h"
 #include "Crypto.h"
+#include "CryptoHelpers.h"
 #include "Exceptions.h"
 
 #include <RakPeerInterface.h>
@@ -72,6 +73,7 @@ void LocalNoiseInterface::handlePacket(void)
 	if (network && network->isRunning())
 	{
 		RakNet::Packet* packet = network->handlePacket();
+		mux.unlock();
 		if (packet)
 		{
 			switch (packet->data[0])
@@ -96,17 +98,52 @@ void LocalNoiseInterface::handlePacket(void)
 			{
 				RakNet::BitStream bsIn(packet->data, packet->length, false);
 				bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
-				//now we can read into a fingerprint
-				std::vector<unsigned char> fingerprintData;
+				//now create a fingerprint
+				Fingerprint fingerprint = Fingerprint(bsIn);
+				Log::writeToLog(Log::INFO, "Recieved fingerprint ", fingerprint.toString());
+				//See if we need that fingerprint
+				if (otherEncryptionKeys[fingerprint] == 0)
+					requestPublickey(fingerprint, packet->guid);
+				break;
+			}
+
+			case ID_REQUEST_PUBKEY:
+			{
+				RakNet::BitStream bsIn(packet->data, packet->length, false);
+				bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+				//now create a fingerprint
+				Fingerprint fingerprint = Fingerprint(bsIn);
+				Log::writeToLog(Log::INFO, "Recieved public key request for key ", fingerprint.toString());
+				//if we have it, let's send it
+				mux.lock();
+				if (ourEncryptionKeys.count(fingerprint))
+				{
+					mux.unlock();
+					sendPublickey(fingerprint, packet->guid);
+				}
+				else
+					mux.unlock();
+				break;
+			}
+
+			case ID_SEND_PUBKEY:
+			{
+				RakNet::BitStream bsIn(packet->data, packet->length, false);
+				bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+				//recieve bytes
+				std::vector<unsigned char> pubkeyData;
 				unsigned char cur = 0;
 				while (bsIn.Read(cur))
 				{
-					fingerprintData.push_back(cur);
+					pubkeyData.push_back(cur);
 				}
-				//now create a fingerprint
-				Fingerprint fingerprint = Fingerprint(fingerprintData);
-				Log::writeToLog(Log::INFO, "Recieved fingerprint ", fingerprint.toString());
-				break;
+				//convert to a key
+				openssl::EVP_PKEY* newKey = CryptoHelpers::bytesToOslPublicKey(pubkeyData);
+				//get it's fingerprint
+				Fingerprint fingerprint = Fingerprint(newKey);
+				Log::writeToLog(Log::INFO, "Recieved public key ", fingerprint.toString());
+				//insert into our map!
+				otherEncryptionKeys[fingerprint] = newKey;
 			}
 
 			default:
@@ -115,8 +152,39 @@ void LocalNoiseInterface::handlePacket(void)
 			network->deallocatePacket(packet);
 		}
 	}
+	else
+		mux.unlock();
+}
 
+void LocalNoiseInterface::requestPublickey(const Fingerprint & fingerprint, RakNet::RakNetGUID system)
+{
+	Log::writeToLog(Log::INFO, "Requesting public key ", fingerprint.toString());
+	RakNet::BitStream bs;
+	bs.Write((RakNet::MessageID)ID_REQUEST_PUBKEY);
+	fingerprint.toBitStream(bs);
+	mux.lock();
+	network->sendBitStream(&bs, system, false);
 	mux.unlock();
+}
+
+void LocalNoiseInterface::sendPublickey(const Fingerprint & fingerprint, RakNet::RakNetGUID system)
+{
+	mux.lock();
+	if (ourEncryptionKeys.count(fingerprint))
+	{
+		std::vector<unsigned char> pubkey = CryptoHelpers::oslPublicKeyToBytes(ourEncryptionKeys[fingerprint]);
+		Log::writeToLog(Log::INFO, "Sending public key ", fingerprint.toString());
+		RakNet::BitStream bs;
+		bs.Write((RakNet::MessageID)ID_SEND_PUBKEY);
+		for (unsigned int i = 0; i < pubkey.size(); ++i)
+			bs.Write(pubkey[i]);
+		network->sendBitStream(&bs, system, false);
+		mux.unlock();
+	}
+	else
+	{
+		mux.unlock();
+	}
 }
 
 void LocalNoiseInterface::connectToNode(const std::string & address, int port)
@@ -131,11 +199,10 @@ void LocalNoiseInterface::connectToNode(const std::string & address, int port)
 void LocalNoiseInterface::advertiseOurPublicKey(const Fingerprint& fingerprint)
 {
 	Log::writeToLog(Log::INFO, "Advertising public key ", fingerprint.toString());
-	mux.lock();
 	RakNet::BitStream bs;
 	bs.Write((RakNet::MessageID)ID_OFFER_PUBKEY);
-	for (unsigned int i = 0; i < fingerprint.data.size(); ++i)
-		bs.Write(fingerprint.data[i]);
+	fingerprint.toBitStream(bs);
+	mux.lock();
 	network->sendBitStream(&bs, RakNet::UNASSIGNED_RAKNET_GUID, true);
 	mux.unlock();
 }
