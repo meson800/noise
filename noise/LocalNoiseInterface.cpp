@@ -149,6 +149,71 @@ void LocalNoiseInterface::handlePacket(void)
 				Log::writeToLog(Log::INFO, "Recieved public key ", fingerprint.toString());
 				//insert into our map!
 				otherEncryptionKeys[fingerprint] = newKey;
+				break;
+			}
+
+			case ID_CHALLENGE_PUBKEY:
+			{
+				RakNet::BitStream bsIn(packet->data, packet->length, false);
+				bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+				//recieve pubkey fingerprint
+				Fingerprint fingerprint = Fingerprint(bsIn);
+				Log::writeToLog(Log::INFO, "Challenge recieved for pubkey ", fingerprint.toString());
+
+				//recieve challenge
+				std::vector<unsigned char> challengeData;
+				unsigned char cur = 0;
+				while (bsIn.Read(cur))
+					challengeData.push_back(cur);
+				//if we own that key, verify it
+				//note that this function takes care of it
+				verifyChallenge(fingerprint, challengeData, packet->guid);
+				break;
+			}
+
+			case ID_VERIFY_CHALLENGE:
+			{
+				RakNet::BitStream bsIn(packet->data, packet->length, false);
+				bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+				//recieve pubkey fingerprint
+				Fingerprint fingerprint = Fingerprint(bsIn);
+				Log::writeToLog(Log::INFO, "Recieved challenge response for pubkey ", fingerprint.toString());
+
+				//recieve response
+				std::vector<unsigned char> responseData;
+				unsigned char cur = 0;
+				while (bsIn.Read(cur))
+					responseData.push_back(cur);
+
+				//let's see if we have a live challenge
+				mux.lock();
+				//This checks if we have this public key and we have a challenge live
+				if (otherEncryptionKeys.count(fingerprint) && otherEncryptionKeys[fingerprint] &&
+					liveChallenges.count(fingerprint))
+				{
+					//try to verify
+					if (crypto->verifySignature(otherEncryptionKeys[fingerprint], liveChallenges[fingerprint], responseData))
+					{
+						Log::writeToLog(Log::INFO, "Verified system ", packet->guid.ToString(), 
+							" as owning pubkey ", fingerprint.toString());
+						//remove from challenges and verify
+						verifiedSystems[fingerprint] = packet->guid;
+						liveChallenges.erase(fingerprint);
+					}
+					else
+					{
+						Log::writeToLog(Log::INFO, "Verification failed for system ", packet->guid.ToString(),
+							" and pubkey ", fingerprint.toString());
+						//remove from live challenges
+						liveChallenges.erase(fingerprint);
+					}
+				}
+				else
+				{
+					Log::writeToLog(Log::INFO, "Didn't request challenge for pubkey ", fingerprint.toString());
+				}
+				mux.unlock();
+			break;
 			}
 
 			default:
@@ -190,6 +255,26 @@ void LocalNoiseInterface::sendPublickey(const Fingerprint & fingerprint, RakNet:
 	{
 		mux.unlock();
 	}
+}
+
+void LocalNoiseInterface::verifyChallenge(const Fingerprint & fingerprint, const std::vector<unsigned char>& challenge, RakNet::RakNetGUID system)
+{
+	//Check that we have the key
+	mux.lock();
+	if (ourEncryptionKeys.count(fingerprint))
+	{
+		std::vector<unsigned char> response = crypto->signMessage(ourEncryptionKeys[fingerprint], challenge);
+		RakNet::BitStream bs;
+		bs.Write((RakNet::MessageID)ID_VERIFY_CHALLENGE);
+		//write out the fingerprint
+		fingerprint.toBitStream(bs);
+		for (unsigned int i = 0; i < response.size(); ++i)
+			bs.Write(response[i]);
+		network->sendBitStream(&bs, system, false);
+		mux.unlock();
+	}
+	else
+		mux.unlock();
 }
 
 void LocalNoiseInterface::connectToNode(const std::string & address, int port)

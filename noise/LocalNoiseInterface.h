@@ -52,6 +52,8 @@ private:
 	void requestPublickey(const Fingerprint& fingerprint, RakNet::RakNetGUID system);
 	//Sends a publickey if we have it
 	void sendPublickey(const Fingerprint& fingerprint, RakNet::RakNetGUID system);
+	//Signs a challenge if we can
+	void verifyChallenge(const Fingerprint& fingerprint, const std::vector<unsigned char>& challenge, RakNet::RakNetGUID system);
 
 	std::mutex mux;
 

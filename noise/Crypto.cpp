@@ -48,7 +48,7 @@ void Crypto::generateKeypair(openssl::EVP_PKEY ** key)
 		throw KeyGenerationException("Key generation failed");
 }
 
-std::vector<unsigned char> Crypto::signMessage(openssl::EVP_PKEY * key, std::vector<unsigned char> message)
+std::vector<unsigned char> Crypto::signMessage(openssl::EVP_PKEY * key, const std::vector<unsigned char>& message)
 {
 	openssl::EVP_MD_CTX* digestContext = 0;
 	//create and init the context
@@ -77,21 +77,21 @@ std::vector<unsigned char> Crypto::signMessage(openssl::EVP_PKEY * key, std::vec
 	return result;
 }
 
-bool Crypto::verifySignature(openssl::EVP_PKEY * key, std::vector<unsigned char> message, std::vector<unsigned char> signature)
+bool Crypto::verifySignature(openssl::EVP_PKEY * key, const std::vector<unsigned char>& message, const std::vector<unsigned char>& signature)
 {
 	openssl::EVP_MD_CTX* digestContext = 0;
 	//create and init the context
 	if (!(digestContext = openssl::EVP_MD_CTX_create()))
 		throw OpensslException("Couldn't create message signing context");
 	//Init verification operation
-	if (1 != openssl::EVP_DigestSignInit(digestContext, NULL, openssl::EVP_sha256(), NULL, key))
+	if (1 != openssl::EVP_DigestVerifyInit(digestContext, NULL, openssl::EVP_sha256(), NULL, key))
 		throw OpensslException("Couldn't start the verification process");
-	if (1 != openssl::EVP_DigestSignUpdate(digestContext, message.data(), message.size()))
+	if (1 != openssl::EVP_DigestVerifyUpdate(digestContext, message.data(), message.size()))
 		throw OpensslException("Couldn't verify message");
 
 	//verify signature
 	size_t size = signature.size();
-	if (1 == openssl::EVP_DigestSignFinal(digestContext, signature.data(), &size))
+	if (1 == openssl::EVP_DigestVerifyFinal(digestContext, signature.data(), size))
 	{
 		return true;
 	}
