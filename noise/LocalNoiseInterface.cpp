@@ -149,6 +149,9 @@ void LocalNoiseInterface::handlePacket(void)
 				Log::writeToLog(Log::INFO, "Recieved public key ", fingerprint.toString());
 				//insert into our map!
 				otherEncryptionKeys[fingerprint] = newKey;
+
+				//send a challenge--TEMPORARY
+				sendChallenge(packet->guid, fingerprint);
 				break;
 			}
 
