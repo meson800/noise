@@ -127,7 +127,7 @@ bool Crypto::verifySignature(openssl::EVP_PKEY * key, const std::vector<unsigned
 	return false;
 }
 void Crypto::deriveSharedKey(openssl::EVP_PKEY * key, openssl::EVP_PKEY * otherKey, 
-	std::vector<unsigned char>& sharedKeyData, std::vector<unsigned char>& sharedIv)
+	SymmetricKey& sharedKey)
 {
 	openssl::EVP_PKEY_CTX* derivationContext = 0;
 	//start derivation context
@@ -156,21 +156,21 @@ void Crypto::deriveSharedKey(openssl::EVP_PKEY * key, openssl::EVP_PKEY * otherK
 	EVP_PKEY_free(otherKey);
 
 	//Hash the shared secret to derive a secure key
-	unsigned char* sharedKey = new unsigned char[SHA512_DIGEST_LENGTH];
-	openssl::SHA512(tempBuffer, secretSize, sharedKey);
-	sharedKeyData = std::vector<unsigned char>(sharedKey, sharedKey + 32);
-	sharedIv = std::vector<unsigned char>(sharedKey + 32, sharedKey + 32 + 16);
+	unsigned char* sharedKeyBuffer = new unsigned char[SHA512_DIGEST_LENGTH];
+	openssl::SHA512(tempBuffer, secretSize, sharedKeyBuffer);
+	sharedKey.key = std::vector<unsigned char>(sharedKeyBuffer, sharedKeyBuffer + 32);
+	sharedKey.iv = std::vector<unsigned char>(sharedKeyBuffer + 32, sharedKeyBuffer + 32 + 16);
 	delete[](tempBuffer);
-	delete[](sharedKey);
+	delete[](sharedKeyBuffer);
 }
 
-std::vector<unsigned char> Crypto::encryptSymmetric(const std::vector<unsigned char>& key, const std::vector<unsigned char>& iv, const std::vector<unsigned char>& plaintext)
+std::vector<unsigned char> Crypto::encryptSymmetric(const SymmetricKey& key, const std::vector<unsigned char>& plaintext)
 {
 	openssl::EVP_CIPHER_CTX* cipherContext = 0;
 	//init context
 	if (NULL == (cipherContext = openssl::EVP_CIPHER_CTX_new()))
 		throw OpensslException("Couldn't create cipher context");
-	if (1 != openssl::EVP_EncryptInit_ex(cipherContext, openssl::EVP_aes_256_cbc(), NULL, key.data(), iv.data()))
+	if (1 != openssl::EVP_EncryptInit_ex(cipherContext, openssl::EVP_aes_256_cbc(), NULL, key.key.data(), key.iv.data()))
 		throw OpensslException("Couldn't init symmetric encryption");
 
 	//create buffer large enough for ciphertext. Let's make it ciphertext + 1024, just in case
@@ -195,13 +195,13 @@ std::vector<unsigned char> Crypto::encryptSymmetric(const std::vector<unsigned c
 	return std::vector<unsigned char>();
 }
 
-std::vector<unsigned char> Crypto::decryptSymmetric(const std::vector<unsigned char>& key, const std::vector<unsigned char>& iv, const std::vector<unsigned char>& ciphertext)
+std::vector<unsigned char> Crypto::decryptSymmetric(const SymmetricKey& key, const std::vector<unsigned char>& ciphertext)
 {
 	openssl::EVP_CIPHER_CTX* cipherContext = 0;
 	//init context
 	if (NULL == (cipherContext = openssl::EVP_CIPHER_CTX_new()))
 		throw OpensslException("Couldn't create cipher context");
-	if (1 != openssl::EVP_DecryptInit_ex(cipherContext, openssl::EVP_aes_256_cbc(), NULL, key.data(), iv.data()))
+	if (1 != openssl::EVP_DecryptInit_ex(cipherContext, openssl::EVP_aes_256_cbc(), NULL, key.key.data(), key.iv.data()))
 		throw OpensslException("Couldn't init symmetric decryption");
 
 	//do main decryption

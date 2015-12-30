@@ -152,6 +152,7 @@
     <ClInclude Include="Messages.h" />
     <ClInclude Include="Network.h" />
     <ClInclude Include="NoiseInterface.h" />
+    <ClInclude Include="SymmetricKey.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
