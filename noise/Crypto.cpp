@@ -225,3 +225,86 @@ std::vector<unsigned char> Crypto::decryptSymmetric(const std::vector<unsigned c
 	
 	return plaintext;
 }
+
+Envelope Crypto::encryptAsymmetric(openssl::EVP_PKEY ** publicKey, std::vector<unsigned char> plaintext)
+{
+	Envelope envelope;
+
+	//init context
+	openssl::EVP_CIPHER_CTX* cipherContext;
+	if (NULL == (cipherContext = openssl::EVP_CIPHER_CTX_new()))
+		throw OpensslException("Couldn't create encryption context");
+
+	//create temp buffers for encrypted key and iv
+	unsigned char* tempEncryptedKey = new unsigned char[256];
+	int encryptedKeyLength = 0;
+	unsigned char* tempIv = new unsigned char[128];
+	//init envelope creation
+	if (1 != openssl::EVP_SealInit(cipherContext, openssl::EVP_aes_256_cbc(), &tempEncryptedKey, 
+		&encryptedKeyLength, tempIv, publicKey, 1))
+		throw OpensslException("Couldn't start envelope encryption");
+
+	//create temp buffer for ciphertext
+	unsigned char* tempCiphertext = new unsigned char[plaintext.size() + 1024];
+
+	int usedLength = 0;
+	if (1 != openssl::EVP_SealUpdate(cipherContext, tempCiphertext, &usedLength, plaintext.data(), plaintext.size()))
+		throw OpensslException("Couldn't encrypt plaintext into envelope");
+
+	int additionalLength = 0;
+	//finalize envelope, additional ciphertext can be written
+	if (1 != openssl::EVP_SealFinal(cipherContext, tempCiphertext + usedLength, &additionalLength))
+		throw OpensslException("Couldn't finalize envelope creation");
+
+	usedLength += additionalLength;
+
+	//now copy into envelope
+	envelope.ciphertext = std::vector<unsigned char>(tempCiphertext, tempCiphertext + usedLength);
+	envelope.sessionKey = std::vector<unsigned char>(tempEncryptedKey, tempEncryptedKey + encryptedKeyLength);
+	envelope.iv = std::vector<unsigned char>(tempIv, tempIv + 128);
+
+	//cleanup
+	openssl::EVP_CIPHER_CTX_free(cipherContext);
+	delete[](tempEncryptedKey);
+	delete[](tempIv);
+	delete[](tempCiphertext);
+
+	return envelope;
+}
+
+std::vector<unsigned char> Crypto::decryptAsymmetric(openssl::EVP_PKEY * key, const Envelope & envelope)
+{
+	//init context
+	openssl::EVP_CIPHER_CTX* cipherContext;
+	if (NULL == (cipherContext = openssl::EVP_CIPHER_CTX_new()))
+		throw OpensslException("Couldn't create encryption context");
+
+	//init decryption
+	if (1 != openssl::EVP_OpenInit(cipherContext, openssl::EVP_aes_256_cbc(), envelope.sessionKey.data(),
+		envelope.sessionKey.size(), envelope.iv.data(), key))
+		throw OpensslException("Couldn't init envelope decryption");
+
+	//create temp storage for plaintext
+	unsigned char* tempPlaintext = new unsigned char[envelope.ciphertext.size() + 1024];
+	int usedLength = 0;
+
+	//decrypt
+	if (1 != openssl::EVP_OpenUpdate(cipherContext, tempPlaintext, &usedLength, 
+		envelope.ciphertext.data(), envelope.ciphertext.size()))
+		throw OpensslException("Couldn't decrypt envelope");
+
+	//Finalize decryption. This might write additional plaintext!
+	int additionalLength = 0;
+	if (1 != openssl::EVP_OpenFinal(cipherContext, tempPlaintext + usedLength, &additionalLength))
+		throw OpensslException("Couldn't finalize envelope decryption");
+
+	usedLength += additionalLength;
+	//copy result
+	std::vector<unsigned char> plaintext = std::vector<unsigned char>(tempPlaintext, tempPlaintext + usedLength);
+
+	//cleanup
+	openssl::EVP_CIPHER_CTX_free(cipherContext);
+	delete[](tempPlaintext);
+	
+	return plaintext;
+}

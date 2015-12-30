@@ -11,6 +11,13 @@ namespace openssl
 	typedef evp_pkey_st EVP_PKEY;
 }
 
+struct Envelope
+{
+	std::vector<unsigned char> sessionKey;
+	std::vector<unsigned char> iv;
+	std::vector<unsigned char> ciphertext;
+};
+
 class Crypto
 {
 public:
@@ -24,12 +31,18 @@ public:
 	//Derive a shared key and IV based on two ephemeral keys. This function deallocates the keys afterwards
 	void deriveSharedKey(openssl::EVP_PKEY * key, openssl::EVP_PKEY * otherKey,
 		std::vector<unsigned char>& sharedKeyData, std::vector<unsigned char>& sharedIv);
-	//Encrypt a plaintext with a given key and IV
+	//Encrypt plaintext with a given key and IV
 	std::vector<unsigned char> encryptSymmetric(const std::vector<unsigned char>& key,
 		const std::vector<unsigned char>& iv, const std::vector<unsigned char>& plaintext);
-	//Decrypt a plaintexxt with a given key and IV
+	//Decrypt ciphertext with a given key and IV
 	std::vector<unsigned char> decryptSymmetric(const std::vector<unsigned char>& key,
 		const std::vector<unsigned char>& iv, const std::vector<unsigned char>& ciphertext);
+
+	//Asymmetric encryption------------------
+	//Encrypt plaintext with a publickey
+	Envelope encryptAsymmetric(openssl::EVP_PKEY** publicKey, std::vector<unsigned char> plaintext);
+	//Decrypt an envelope
+	std::vector<unsigned char> decryptAsymmetric(openssl::EVP_PKEY* key, const Envelope& envelope);
 
 private:
 	openssl::EVP_PKEY_CTX* keyContext;
