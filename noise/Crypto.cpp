@@ -70,6 +70,7 @@ void Crypto::generateKeypair(openssl::EVP_PKEY ** key)
 
 void Crypto::generateEphemeralKeypair(openssl::EVP_PKEY ** key)
 {
+	*key = openssl::EVP_PKEY_new();
 	Log::writeToLog(Log::INFO, "Generating ephemeral EC keypair");
 	if (!ephemeralKeyContext)
 		throw KeyGenerationException("Can't generate ephemeral EC keypair, no context");

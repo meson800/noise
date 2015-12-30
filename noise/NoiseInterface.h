@@ -22,6 +22,9 @@ public:
 	virtual void advertiseOurPublicKey(const Fingerprint& fingerprint) = 0;
 	//Sends a challenge to a server with a associated public key to prove the server has the private key
 	virtual void sendChallenge(RakNet::RakNetGUID system, const Fingerprint& fingerprint) = 0;
+	//Sends a packet of data to another public key
+	//Data is encrypted inside envelope for other public key, then wrapped in a PFS ephemeral key
+	virtual void sendData(const Fingerprint& fingerprint, const std::vector<unsigned char>& data) = 0;
 
 	//---------Cryptography Functions----------------
 	//-----------------------------------------------

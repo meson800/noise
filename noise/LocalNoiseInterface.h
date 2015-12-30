@@ -2,6 +2,7 @@
 
 #include "NoiseInterface.h"
 #include "Fingerprint.h"
+#include "SymmetricKey.h"
 #include <RakNetTypes.h>
 
 class Network;
@@ -36,6 +37,8 @@ public:
 	void advertiseOurPublicKey(const Fingerprint& fingerprint) override;
 	//Sends a challenge to a server with a associated public key to prove the server has the private key
 	void sendChallenge(RakNet::RakNetGUID system, const Fingerprint& fingerprint) override;
+	//Data is encrypted inside envelope for other public key, then wrapped in a PFS ephemeral key
+	void sendData(const Fingerprint& fingerprint, const std::vector<unsigned char>& data) override;
 
 	//---------Cryptography Functions----------------
 	//-----------------------------------------------
@@ -55,6 +58,12 @@ private:
 	//Signs a challenge if we can
 	void verifyChallenge(const Fingerprint& fingerprint, const std::vector<unsigned char>& challenge, RakNet::RakNetGUID system);
 
+	//Sends ephemeral public key to other system to derive PFS key so we can send our data along
+	void sendEphemeralPublicKey(const Fingerprint& fingerprint);
+	void sendEphemeralPublicKey(RakNet::RakNetGUID system);
+	//Sends encrypted data using double encryption
+	void sendEncryptedData(const Fingerprint& fingerprint);
+
 	std::mutex mux;
 
 	Network* network;
@@ -64,5 +73,11 @@ private:
 	std::map<Fingerprint, openssl::EVP_PKEY*> otherEncryptionKeys;
 	std::map<Fingerprint, RakNet::RakNetGUID> verifiedSystems;
 	std::map<Fingerprint, std::vector<unsigned char>> liveChallenges;
+
+	std::map<Fingerprint, std::vector<unsigned char>> outgoingData;
+	std::map<RakNet::RakNetGUID, openssl::EVP_PKEY*> ourEphemeralKeys;
+	std::map<RakNet::RakNetGUID, openssl::EVP_PKEY*> otherEphemeralKeys;
+	std::map<RakNet::RakNetGUID, SymmetricKey> sharedKeys;
+
 	std::map<RakNet::RakNetGUID, std::vector<Fingerprint>> nodes;
 };
