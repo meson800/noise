@@ -138,6 +138,7 @@
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Network.cpp" />
+    <ClCompile Include="SymmetricKey.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CLI.h" />

@@ -7,6 +7,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <RakNetTypes.h>
 
 namespace openssl
 {
@@ -83,6 +84,23 @@ void CLI::runInterface()
 			Fingerprint fingerprint = inter->generateNewEncryptionKey();
 			inter->advertiseOurPublicKey(fingerprint);
 			std::cout << "Sucessefully created key " << fingerprint.toString() << "\n";
+		}
+		else if (input.size() == 1 && input.c_str()[0] == 'e')
+		{
+			std::cout << "Enter system GUID to send data to:";
+			std::string guid;
+			std::getline(std::cin, guid);
+			RakNet::RakNetGUID rnGuid;
+			rnGuid.FromString(guid.c_str());
+			Fingerprint fingerprint = inter->getFingerprint(rnGuid);
+
+			std::cout << "Enter plaintext to encrypt:";
+			std::string plaintext;
+			std::getline(std::cin, plaintext);
+			std::vector<unsigned char> plaintextBytes;
+			for (unsigned int i = 0; i < plaintext.size(); ++i)
+				plaintextBytes.push_back(plaintext[i]);
+			inter->sendData(fingerprint, plaintextBytes);
 		}
 	}
 	mut.lock();

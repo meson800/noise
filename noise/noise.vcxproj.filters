@@ -42,6 +42,9 @@
     <ClCompile Include="Envelope.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SymmetricKey.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Log.h">

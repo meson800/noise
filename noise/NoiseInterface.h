@@ -25,6 +25,8 @@ public:
 	//Sends a packet of data to another public key
 	//Data is encrypted inside envelope for other public key, then wrapped in a PFS ephemeral key
 	virtual void sendData(const Fingerprint& fingerprint, const std::vector<unsigned char>& data) = 0;
+	//Gets a verified fingerprint for a given system
+	virtual Fingerprint getFingerprint(RakNet::RakNetGUID system) = 0;
 
 	//---------Cryptography Functions----------------
 	//-----------------------------------------------

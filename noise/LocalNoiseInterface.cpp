@@ -14,6 +14,7 @@
 namespace openssl
 {
 #include <openssl\rand.h>
+#include <openssl\err.h>
 }
 
 LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0)
@@ -77,250 +78,263 @@ void LocalNoiseInterface::handlePacket(void)
 	mux.lock();
 	if (network && network->isRunning())
 	{
-		RakNet::Packet* packet = network->handlePacket();
-		mux.unlock();
-		if (packet)
+		try
 		{
-			switch (packet->data[0])
+			RakNet::Packet* packet = network->handlePacket();
+			mux.unlock();
+			if (packet)
 			{
-			case ID_REMOTE_CONNECTION_LOST:
-			case ID_REMOTE_DISCONNECTION_NOTIFICATION:
-			case ID_DISCONNECTION_NOTIFICATION:
-			case ID_CONNECTION_LOST:
-				//remove from our list of nodes
-				if (nodes.count(packet->guid))
-					nodes.erase(packet->guid);
-				break;
-
-			case ID_REMOTE_NEW_INCOMING_CONNECTION:
-			case ID_CONNECTION_REQUEST_ACCEPTED:
-			case ID_NEW_INCOMING_CONNECTION:
-				//add to our list of nodes
-				nodes[packet->guid] = std::vector<Fingerprint>();
-				break;
-
-			case ID_OFFER_PUBKEY:
-			{
-				RakNet::BitStream bsIn(packet->data, packet->length, false);
-				bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
-				//now create a fingerprint
-				Fingerprint fingerprint = Fingerprint(bsIn);
-				Log::writeToLog(Log::INFO, "Recieved fingerprint ", fingerprint.toString());
-				//See if we need that fingerprint
-				if (otherEncryptionKeys[fingerprint] == 0)
-					requestPublickey(fingerprint, packet->guid);
-				break;
-			}
-
-			case ID_REQUEST_PUBKEY:
-			{
-				RakNet::BitStream bsIn(packet->data, packet->length, false);
-				bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
-				//now create a fingerprint
-				Fingerprint fingerprint = Fingerprint(bsIn);
-				Log::writeToLog(Log::INFO, "Recieved public key request for key ", fingerprint.toString());
-				//if we have it, let's send it
-				mux.lock();
-				if (ourEncryptionKeys.count(fingerprint))
+				switch (packet->data[0])
 				{
-					mux.unlock();
-					sendPublickey(fingerprint, packet->guid);
+				case ID_REMOTE_CONNECTION_LOST:
+				case ID_REMOTE_DISCONNECTION_NOTIFICATION:
+				case ID_DISCONNECTION_NOTIFICATION:
+				case ID_CONNECTION_LOST:
+					//remove from our list of nodes
+					if (nodes.count(packet->guid))
+						nodes.erase(packet->guid);
+					break;
+
+				case ID_REMOTE_NEW_INCOMING_CONNECTION:
+				case ID_CONNECTION_REQUEST_ACCEPTED:
+				case ID_NEW_INCOMING_CONNECTION:
+					//add to our list of nodes
+					nodes[packet->guid] = std::vector<Fingerprint>();
+					break;
+
+				case ID_OFFER_PUBKEY:
+				{
+					RakNet::BitStream bsIn(packet->data, packet->length, false);
+					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+					//now create a fingerprint
+					Fingerprint fingerprint = Fingerprint(bsIn);
+					Log::writeToLog(Log::INFO, "Recieved fingerprint ", fingerprint.toString());
+					//See if we need that fingerprint
+					if (otherEncryptionKeys[fingerprint] == 0)
+						requestPublickey(fingerprint, packet->guid);
+					break;
 				}
-				else
-					mux.unlock();
-				break;
-			}
 
-			case ID_SEND_PUBKEY:
-			{
-				RakNet::BitStream bsIn(packet->data, packet->length, false);
-				bsIn.IgnoreBytes(sizeof RakNet::MessageID);
-				//recieve bytes
-				std::vector<unsigned char> pubkeyData;
-				unsigned char cur = 0;
-				while (bsIn.Read(cur))
+				case ID_REQUEST_PUBKEY:
 				{
-					pubkeyData.push_back(cur);
-				}
-				//convert to a key
-				openssl::EVP_PKEY* newKey = CryptoHelpers::bytesToOslPublicKey(pubkeyData);
-				//get it's fingerprint
-				Fingerprint fingerprint = Fingerprint(newKey);
-				Log::writeToLog(Log::INFO, "Recieved public key ", fingerprint.toString());
-				//insert into our map!
-				otherEncryptionKeys[fingerprint] = newKey;
-
-				//send a challenge--TEMPORARY
-				sendChallenge(packet->guid, fingerprint);
-				break;
-			}
-
-			case ID_CHALLENGE_PUBKEY:
-			{
-				RakNet::BitStream bsIn(packet->data, packet->length, false);
-				bsIn.IgnoreBytes(sizeof RakNet::MessageID);
-				//recieve pubkey fingerprint
-				Fingerprint fingerprint = Fingerprint(bsIn);
-				Log::writeToLog(Log::INFO, "Challenge recieved for pubkey ", fingerprint.toString());
-
-				//recieve challenge
-				std::vector<unsigned char> challengeData;
-				unsigned char cur = 0;
-				while (bsIn.Read(cur))
-					challengeData.push_back(cur);
-				//if we own that key, verify it
-				//note that this function takes care of it
-				verifyChallenge(fingerprint, challengeData, packet->guid);
-				break;
-			}
-
-			case ID_VERIFY_CHALLENGE:
-			{
-				RakNet::BitStream bsIn(packet->data, packet->length, false);
-				bsIn.IgnoreBytes(sizeof RakNet::MessageID);
-				//recieve pubkey fingerprint
-				Fingerprint fingerprint = Fingerprint(bsIn);
-				Log::writeToLog(Log::INFO, "Recieved challenge response for pubkey ", fingerprint.toString());
-
-				//recieve response
-				std::vector<unsigned char> responseData;
-				unsigned char cur = 0;
-				while (bsIn.Read(cur))
-					responseData.push_back(cur);
-
-				//let's see if we have a live challenge
-				mux.lock();
-				//This checks if we have this public key and we have a challenge live
-				if (otherEncryptionKeys.count(fingerprint) && otherEncryptionKeys[fingerprint] &&
-					liveChallenges.count(fingerprint))
-				{
-					//try to verify
-					if (crypto->verifySignature(otherEncryptionKeys[fingerprint], liveChallenges[fingerprint], responseData))
+					RakNet::BitStream bsIn(packet->data, packet->length, false);
+					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+					//now create a fingerprint
+					Fingerprint fingerprint = Fingerprint(bsIn);
+					Log::writeToLog(Log::INFO, "Recieved public key request for key ", fingerprint.toString());
+					//if we have it, let's send it
+					mux.lock();
+					if (ourEncryptionKeys.count(fingerprint))
 					{
-						Log::writeToLog(Log::INFO, "Verified system ", packet->guid.ToString(), 
-							" as owning pubkey ", fingerprint.toString());
-						//remove from challenges and verify
-						verifiedSystems[fingerprint] = packet->guid;
-						liveChallenges.erase(fingerprint);
+						mux.unlock();
+						sendPublickey(fingerprint, packet->guid);
+					}
+					else
+						mux.unlock();
+					break;
+				}
+
+				case ID_SEND_PUBKEY:
+				{
+					RakNet::BitStream bsIn(packet->data, packet->length, false);
+					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					//recieve bytes
+					std::vector<unsigned char> pubkeyData;
+					unsigned char cur = 0;
+					while (bsIn.Read(cur))
+					{
+						pubkeyData.push_back(cur);
+					}
+					//convert to a key
+					openssl::EVP_PKEY* newKey = CryptoHelpers::bytesToOslPublicKey(pubkeyData);
+					//get it's fingerprint
+					Fingerprint fingerprint = Fingerprint(newKey);
+					Log::writeToLog(Log::INFO, "Recieved public key ", fingerprint.toString());
+					//insert into our map!
+					otherEncryptionKeys[fingerprint] = newKey;
+
+					//send a challenge--TEMPORARY
+					sendChallenge(packet->guid, fingerprint);
+					break;
+				}
+
+				case ID_CHALLENGE_PUBKEY:
+				{
+					RakNet::BitStream bsIn(packet->data, packet->length, false);
+					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					//recieve pubkey fingerprint
+					Fingerprint fingerprint = Fingerprint(bsIn);
+					Log::writeToLog(Log::INFO, "Challenge recieved for pubkey ", fingerprint.toString());
+
+					//recieve challenge
+					std::vector<unsigned char> challengeData;
+					unsigned char cur = 0;
+					while (bsIn.Read(cur))
+						challengeData.push_back(cur);
+					//if we own that key, verify it
+					//note that this function takes care of it
+					verifyChallenge(fingerprint, challengeData, packet->guid);
+					break;
+				}
+
+				case ID_VERIFY_CHALLENGE:
+				{
+					RakNet::BitStream bsIn(packet->data, packet->length, false);
+					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					//recieve pubkey fingerprint
+					Fingerprint fingerprint = Fingerprint(bsIn);
+					Log::writeToLog(Log::INFO, "Recieved challenge response for pubkey ", fingerprint.toString());
+
+					//recieve response
+					std::vector<unsigned char> responseData;
+					unsigned char cur = 0;
+					while (bsIn.Read(cur))
+						responseData.push_back(cur);
+
+					//let's see if we have a live challenge
+					mux.lock();
+					//This checks if we have this public key and we have a challenge live
+					if (otherEncryptionKeys.count(fingerprint) && otherEncryptionKeys[fingerprint] &&
+						liveChallenges.count(fingerprint))
+					{
+						//try to verify
+						if (crypto->verifySignature(otherEncryptionKeys[fingerprint], liveChallenges[fingerprint], responseData))
+						{
+							Log::writeToLog(Log::INFO, "Verified system ", packet->guid.ToString(),
+								" as owning pubkey ", fingerprint.toString());
+							//remove from challenges and verify
+							verifiedSystems[fingerprint] = packet->guid;
+							liveChallenges.erase(fingerprint);
+						}
+						else
+						{
+							Log::writeToLog(Log::INFO, "Verification failed for system ", packet->guid.ToString(),
+								" and pubkey ", fingerprint.toString());
+							//remove from live challenges
+							liveChallenges.erase(fingerprint);
+						}
 					}
 					else
 					{
-						Log::writeToLog(Log::INFO, "Verification failed for system ", packet->guid.ToString(),
-							" and pubkey ", fingerprint.toString());
-						//remove from live challenges
-						liveChallenges.erase(fingerprint);
+						Log::writeToLog(Log::INFO, "Didn't request challenge for pubkey ", fingerprint.toString());
 					}
+					mux.unlock();
+					break;
 				}
-				else
+
+				case ID_SEND_EPHEMERAL_PUBKEY:
 				{
-					Log::writeToLog(Log::INFO, "Didn't request challenge for pubkey ", fingerprint.toString());
-				}
-				mux.unlock();
-			break;
-			}
+					Log::writeToLog(Log::INFO, "Recieved ephemeral pubkey from system ", packet->guid.ToString());
+					RakNet::BitStream bsIn(packet->data, packet->length, false);
+					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
 
-			case ID_SEND_EPHEMERAL_PUBKEY:
-			{
-				Log::writeToLog(Log::INFO, "Recieved ephemeral pubkey from system ", packet->guid.ToString());
-				RakNet::BitStream bsIn(packet->data, packet->length, false);
-				bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					std::vector<unsigned char> recievedEphemeralKeyData;
+					unsigned char cur = 0;
+					while (bsIn.Read(cur))
+						recievedEphemeralKeyData.push_back(cur);
 
-				std::vector<unsigned char> recievedEphemeralKeyData;
-				unsigned char cur = 0;
-				while (bsIn.Read(cur))
-					recievedEphemeralKeyData.push_back(cur);
+					mux.lock();
+					openssl::EVP_PKEY* recievedKey = CryptoHelpers::bytesToEcPublicKey(recievedEphemeralKeyData);
+					otherEphemeralKeys[packet->guid] = recievedKey;
+					//now that we've read a key, let's see if we have sent ours yet
 
-				mux.lock();
-				openssl::EVP_PKEY* recievedKey = CryptoHelpers::bytesToEcPublicKey(recievedEphemeralKeyData);
-				otherEphemeralKeys[packet->guid] = recievedKey;
-				//now that we've read a key, let's see if we have sent ours yet
-
-				if (ourEphemeralKeys.count(packet->guid))
-				{
-					Log::writeToLog(Log::INFO, "Deriving shared secret with system ", packet->guid.ToString());
-					//yes, we've sent our key to them. Let's derive a shared secret and send our packet along :)
-					SymmetricKey sharedKey;
-					crypto->deriveSharedKey(ourEphemeralKeys[packet->guid], recievedKey, sharedKey);
-					sharedKeys[packet->guid] = sharedKey;
-					//erase ephemeral keys, we must reset for the next packet
-					ourEphemeralKeys.erase(packet->guid);
-					otherEphemeralKeys.erase(packet->guid);
-
-					//find the fingerprint that we want for the encrypted data we want to send
-					Fingerprint fingerprint = outgoingData.begin()->first; //init to random fingerprint to start
-					bool goodFingerprint = false;
-					for (auto it = outgoingData.begin(); it != outgoingData.end(); ++it)
+					if (ourEphemeralKeys.count(packet->guid))
 					{
-						//pick the fingerprint for which we have a shared key
-						if (verifiedSystems[it->first] == packet->guid)
+						Log::writeToLog(Log::INFO, "Deriving shared secret with system ", packet->guid.ToString());
+						//yes, we've sent our key to them. Let's derive a shared secret and send our packet along :)
+						SymmetricKey sharedKey;
+						crypto->deriveSharedKey(ourEphemeralKeys[packet->guid], recievedKey, sharedKey);
+						sharedKeys[packet->guid] = sharedKey;
+						//erase ephemeral keys, we must reset for the next packet
+						ourEphemeralKeys.erase(packet->guid);
+						otherEphemeralKeys.erase(packet->guid);
+
+						//find the fingerprint that we want for the encrypted data we want to send
+						Fingerprint fingerprint = outgoingData.begin()->first; //init to random fingerprint to start
+						bool goodFingerprint = false;
+						for (auto it = outgoingData.begin(); it != outgoingData.end(); ++it)
 						{
-							fingerprint = it->first;
-							goodFingerprint = true;
-							break;
+							//pick the fingerprint for which we have a shared key
+							if (verifiedSystems[it->first] == packet->guid)
+							{
+								fingerprint = it->first;
+								goodFingerprint = true;
+								break;
+							}
 						}
-					}
-					mux.unlock();
-					if (goodFingerprint)
-					{
-						sendEncryptedData(fingerprint);
-						//Clear shared key, we used it once
-						mux.lock();
-						sharedKeys.erase(verifiedSystems[fingerprint]);
 						mux.unlock();
+						if (goodFingerprint)
+						{
+							sendEncryptedData(fingerprint);
+							//Clear shared key, we used it once
+							mux.lock();
+							sharedKeys.erase(verifiedSystems[fingerprint]);
+							mux.unlock();
+						}
+
 					}
+					else
+					{
+						//We need to send our key along
+						Log::writeToLog(Log::INFO, "Sending our ephemeral key and deriving shared secret with system ",
+							packet->guid.ToString());
+						//generate us a ephermeral key to send it along
+						openssl::EVP_PKEY* newEphemeralKey = 0;
+						crypto->generateEphemeralKeypair(&newEphemeralKey);
+						//save it
+						ourEphemeralKeys[packet->guid] = newEphemeralKey;
+						mux.unlock();
+						//we have to send before generating shared secret, as deriving destroys the keys
+						sendEphemeralPublicKey(packet->guid);
+						mux.lock();
+						//generate shared secret 
+						SymmetricKey sharedKey;
+						crypto->deriveSharedKey(ourEphemeralKeys[packet->guid], recievedKey, sharedKey);
+						sharedKeys[packet->guid] = sharedKey;
+						//and send ours along
+						mux.unlock();
 
+					}
 				}
-				else
+
+				case ID_SEND_ENCRYPTED_DATA:
 				{
-					//We need to send our key along
-					Log::writeToLog(Log::INFO, "Sending our ephemeral key and deriving shared secret with system ", 
-						packet->guid.ToString());
-					//generate us a ephermeral key to send it along
-					openssl::EVP_PKEY* newEpehemeralKey = 0;
-					crypto->generateEphemeralKeypair(&newEpehemeralKey);
-					//save it
-					ourEphemeralKeys[packet->guid] = newEpehemeralKey;
-					//generate shared secret 
-					SymmetricKey sharedKey;
-					crypto->deriveSharedKey(ourEphemeralKeys[packet->guid], recievedKey, sharedKey);
-					sharedKeys[packet->guid] = sharedKey;
-					//and send ours along
+					Log::writeToLog(Log::INFO, "Recieved encrypted data from system ", packet->guid.ToString());
+					RakNet::BitStream bsIn(packet->data, packet->length, false);
+					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					Fingerprint fingerprint = Fingerprint(bsIn);
+					//read bytes in
+					std::vector<unsigned char> cipherCiphertext;
+					unsigned char cur = 0;
+					while (bsIn.Read(cur))
+						cipherCiphertext.push_back(cur);
+
+					//decrypt it!!!
+					mux.lock();
+					std::vector<unsigned char> ciphertext = crypto->decryptSymmetric(sharedKeys[packet->guid], cipherCiphertext);
+					//expand into envelope
+					Envelope envelope = Envelope(ciphertext);
+					//and decrypt envelope
+					std::vector<unsigned char> plaintext = crypto->decryptAsymmetric(ourEncryptionKeys[fingerprint], envelope);
+					//remove shared key, we're done with it
+					sharedKeys.erase(packet->guid);
 					mux.unlock();
-					sendEphemeralPublicKey(packet->guid);
+					//Append extra NULL so it's a string
+					plaintext.push_back(0);
+					Log::writeToLog(Log::INFO, "Recieved plaintext: ", (char*)plaintext.data());
 				}
-			}
 
-			case ID_SEND_ENCRYPTED_DATA:
-			{
-				Log::writeToLog(Log::INFO, "Recieved encrypted data from system ", packet->guid.ToString());
-				RakNet::BitStream bsIn(packet->data, packet->length, false);
-				bsIn.IgnoreBytes(sizeof RakNet::MessageID);
-				Fingerprint fingerprint = Fingerprint(bsIn);
-				//read bytes in
-				std::vector<unsigned char> cipherCiphertext;
-				unsigned char cur = 0;
-				while (bsIn.Read(cur))
-					cipherCiphertext.push_back(cur);
-
-				//decrypt it!!!
-				mux.lock();
-				std::vector<unsigned char> ciphertext = crypto->decryptSymmetric(sharedKeys[packet->guid], cipherCiphertext);
-				//expand into envelope
-				Envelope envelope = Envelope(ciphertext);
-				//and decrypt envelope
-				std::vector<unsigned char> plaintext = crypto->decryptAsymmetric(ourEncryptionKeys[fingerprint], envelope);
-				//remove shared key, we're done with it
-				sharedKeys.erase(packet->guid);
-				mux.unlock();
-				//Append extra NULL so it's a string
-				plaintext.push_back(0);
-				Log::writeToLog(Log::INFO, "Recieved plaintext: ", (char*)plaintext.data());
+				default:
+					break;
+				}
+				network->deallocatePacket(packet);
 			}
-
-			default:
-				break;
-			}
-			network->deallocatePacket(packet);
+		}
+		catch (const OpensslException& e)
+		{
+			Log::writeToLog(Log::ERR, e.what());
+			openssl::ERR_print_errors_fp(stderr);
+			mux.unlock();
 		}
 	}
 	else
@@ -484,7 +498,7 @@ void LocalNoiseInterface::sendData(const Fingerprint & fingerprint, const std::v
 {
 	//Start off by even checking if we have that fingerprint avaliable and a verified system to send it to
 	mux.lock();
-	if (otherEncryptionKeys.count(fingerprint) && verifiedSystems.count(fingerprint))
+	if (!otherEncryptionKeys.count(fingerprint) && !verifiedSystems.count(fingerprint))
 	{
 		mux.unlock();
 		return;
@@ -501,6 +515,22 @@ void LocalNoiseInterface::sendData(const Fingerprint & fingerprint, const std::v
 	//and send it along
 	mux.unlock();
 	sendEphemeralPublicKey(fingerprint);
+}
+
+Fingerprint LocalNoiseInterface::getFingerprint(RakNet::RakNetGUID system)
+{
+	mux.lock();
+	for (auto it = verifiedSystems.begin(); it != verifiedSystems.end(); ++it)
+	{
+		if (it->second == system)
+		{
+			Fingerprint fingerprint = it->first;
+			mux.unlock();
+			return fingerprint;
+		}
+	}
+	mux.unlock();
+	return Fingerprint();
 }
 
 Fingerprint LocalNoiseInterface::generateNewEncryptionKey()

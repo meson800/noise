@@ -167,6 +167,7 @@ void Crypto::deriveSharedKey(openssl::EVP_PKEY * key, openssl::EVP_PKEY * otherK
 
 std::vector<unsigned char> Crypto::encryptSymmetric(const SymmetricKey& key, const std::vector<unsigned char>& plaintext)
 {
+	Log::writeToLog(Log::L_DEBUG, "Encrypting plaintext of length ", plaintext.size(), " with key ", key.toString());;
 	openssl::EVP_CIPHER_CTX* cipherContext = 0;
 	//init context
 	if (NULL == (cipherContext = openssl::EVP_CIPHER_CTX_new()))
@@ -192,12 +193,14 @@ std::vector<unsigned char> Crypto::encryptSymmetric(const SymmetricKey& key, con
 	openssl::EVP_CIPHER_CTX_free(cipherContext);
 	delete[](ciphertextBuffer);
 
+	Log::writeToLog(Log::L_DEBUG, "Encrypted plaintext into ciphertext of length ", ciphertext.size());
+
 	return ciphertext;
-	return std::vector<unsigned char>();
 }
 
 std::vector<unsigned char> Crypto::decryptSymmetric(const SymmetricKey& key, const std::vector<unsigned char>& ciphertext)
 {
+	Log::writeToLog(Log::L_DEBUG, "Decrypting ciphertext of length ", ciphertext.size(), " with key ", key.toString());
 	openssl::EVP_CIPHER_CTX* cipherContext = 0;
 	//init context
 	if (NULL == (cipherContext = openssl::EVP_CIPHER_CTX_new()))
@@ -223,6 +226,8 @@ std::vector<unsigned char> Crypto::decryptSymmetric(const SymmetricKey& key, con
 	//cleanup
 	openssl::EVP_CIPHER_CTX_free(cipherContext);
 	delete[](plaintextBuffer);
+
+	Log::writeToLog(Log::L_DEBUG, "Decrypted into plaintext of length ", plaintext.size());
 	
 	return plaintext;
 }

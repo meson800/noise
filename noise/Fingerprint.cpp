@@ -10,6 +10,11 @@ namespace openssl
 #include <openssl\sha.h>
 }
 
+Fingerprint::Fingerprint()
+{
+	throw std::runtime_error("Created null fingerprint");
+}
+
 Fingerprint::Fingerprint(openssl::EVP_PKEY * key)
 {
 	//Get public key of key

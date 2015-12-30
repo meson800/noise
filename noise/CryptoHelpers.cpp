@@ -95,7 +95,7 @@ openssl::EVP_PKEY * CryptoHelpers::bytesToEcPublicKey(const std::vector<unsigned
 		throw OpensslException("Couldn't extract point from bytes");
 	openssl::EC_KEY* key = 0;
 
-	if (NULL == (key = openssl::EC_KEY_new()))
+	if (NULL == (key = openssl::EC_KEY_new_by_curve_name(NID_X9_62_prime256v1)))
 		throw OpensslException("Couldn't init new ec key");
 	//generate key
 	if (1 != openssl::EC_KEY_set_public_key(key, point))

@@ -18,6 +18,7 @@ class Fingerprint
 {
 public:
 	//calculates fingerprint of given key
+	Fingerprint();
 	Fingerprint(openssl::EVP_PKEY* key);
 	Fingerprint(RakNet::BitStream& bs);
 	Fingerprint(std::vector<unsigned char> _data);

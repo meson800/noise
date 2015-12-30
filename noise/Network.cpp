@@ -149,6 +149,16 @@ RakNet::Packet* Network::handlePacket()
 		return packet;
 		break;
 
+	case ID_SEND_EPHEMERAL_PUBKEY:
+		Log::writeToLog(Log::INFO, "Recieved an ephemeral publickey from system ", packet->guid.ToString());
+		return packet;
+		break;
+
+	case ID_SEND_ENCRYPTED_DATA:
+		Log::writeToLog(Log::INFO, "Recieved encrypted data from system ", packet->guid.ToString());
+		return packet;
+		break;
+
 	default:
 		Log::writeToLog(Log::L_DEBUG, "Got packet with identifier ", packet->data[0]);
 		return packet;
