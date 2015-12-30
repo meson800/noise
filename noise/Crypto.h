@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "Envelope.h"
+
 namespace openssl
 {
 	struct evp_pkey_ctx_st;
@@ -10,13 +12,6 @@ namespace openssl
 	struct evp_pkey_st;
 	typedef evp_pkey_st EVP_PKEY;
 }
-
-struct Envelope
-{
-	std::vector<unsigned char> sessionKey;
-	std::vector<unsigned char> iv;
-	std::vector<unsigned char> ciphertext;
-};
 
 class Crypto
 {

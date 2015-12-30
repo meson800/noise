@@ -132,6 +132,7 @@
     <ClCompile Include="CLI.cpp" />
     <ClCompile Include="Crypto.cpp" />
     <ClCompile Include="CryptoHelpers.cpp" />
+    <ClCompile Include="Envelope.cpp" />
     <ClCompile Include="Fingerprint.cpp" />
     <ClCompile Include="LocalNoiseInterface.cpp" />
     <ClCompile Include="Log.cpp" />
@@ -142,6 +143,7 @@
     <ClInclude Include="CLI.h" />
     <ClInclude Include="Crypto.h" />
     <ClInclude Include="CryptoHelpers.h" />
+    <ClInclude Include="Envelope.h" />
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="Fingerprint.h" />
     <ClInclude Include="Globals.h" />
