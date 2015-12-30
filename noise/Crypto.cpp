@@ -163,3 +163,65 @@ void Crypto::deriveSharedKey(openssl::EVP_PKEY * key, openssl::EVP_PKEY * otherK
 	delete[](tempBuffer);
 	delete[](sharedKey);
 }
+
+std::vector<unsigned char> Crypto::encryptSymmetric(const std::vector<unsigned char>& key, const std::vector<unsigned char>& iv, const std::vector<unsigned char>& plaintext)
+{
+	openssl::EVP_CIPHER_CTX* cipherContext = 0;
+	//init context
+	if (NULL == (cipherContext = openssl::EVP_CIPHER_CTX_new()))
+		throw OpensslException("Couldn't create cipher context");
+	if (1 != openssl::EVP_EncryptInit_ex(cipherContext, openssl::EVP_aes_256_cbc(), NULL, key.data(), iv.data()))
+		throw OpensslException("Couldn't init symmetric encryption");
+
+	//create buffer large enough for ciphertext. Let's make it ciphertext + 1024, just in case
+	unsigned char * ciphertextBuffer = new unsigned char[plaintext.size() + 1024];
+
+	int usedLength = 0;
+	if (1 != openssl::EVP_EncryptUpdate(cipherContext, ciphertextBuffer, &usedLength, plaintext.data(), plaintext.size()))
+		throw OpensslException("Couldn't encrypt plaintext");
+	//Finalize encryption. Additional ciphertext can be written, for padding
+	int additionalLength = 0;
+	if (1 != openssl::EVP_EncryptFinal(cipherContext, ciphertextBuffer + usedLength, &additionalLength))
+		throw OpensslException("Couldn't finalize encryption");
+	usedLength += additionalLength;
+
+	//copy resultant
+	std::vector<unsigned char> ciphertext = std::vector<unsigned char>(ciphertextBuffer, ciphertextBuffer + usedLength);
+	//cleanup
+	openssl::EVP_CIPHER_CTX_free(cipherContext);
+	delete[](ciphertextBuffer);
+
+	return ciphertext;
+	return std::vector<unsigned char>();
+}
+
+std::vector<unsigned char> Crypto::decryptSymmetric(const std::vector<unsigned char>& key, const std::vector<unsigned char>& iv, const std::vector<unsigned char>& ciphertext)
+{
+	openssl::EVP_CIPHER_CTX* cipherContext = 0;
+	//init context
+	if (NULL == (cipherContext = openssl::EVP_CIPHER_CTX_new()))
+		throw OpensslException("Couldn't create cipher context");
+	if (1 != openssl::EVP_DecryptInit_ex(cipherContext, openssl::EVP_aes_256_cbc(), NULL, key.data(), iv.data()))
+		throw OpensslException("Couldn't init symmetric decryption");
+
+	//do main decryption
+	unsigned char * plaintextBuffer = new unsigned char[ciphertext.size() + 1024];
+
+	int usedLength = 0;
+	if (1 != openssl::EVP_DecryptUpdate(cipherContext, plaintextBuffer, &usedLength, ciphertext.data(), ciphertext.size()))
+		throw OpensslException("Couldn't decrypt ciphertext");
+
+	//finalize decryption. Additional plaintext can be written, so account for it
+	int additionalLength = 0;
+	if (1 != openssl::EVP_DecryptFinal(cipherContext, plaintextBuffer + usedLength, &additionalLength))
+		throw OpensslException("Couldn't finalize decryption");
+	usedLength += additionalLength;
+	
+	//get result
+	std::vector<unsigned char> plaintext = std::vector<unsigned char>(plaintextBuffer, plaintextBuffer + additionalLength);
+	//cleanup
+	openssl::EVP_CIPHER_CTX_free(cipherContext);
+	delete[](plaintextBuffer);
+	
+	return plaintext;
+}
