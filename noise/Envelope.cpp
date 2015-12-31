@@ -15,10 +15,10 @@ Envelope::Envelope(const std::vector<unsigned char>& data)
 	for (unsigned int i = 4; i < 4 + (unsigned int)keySize; ++i)
 		sessionKey.push_back(data[i]);
 	//extract iv
-	for (unsigned int i = 4 + keySize; i < 4 + (unsigned int)keySize + 128; ++i)
+	for (unsigned int i = 4 + keySize; i < 4 + (unsigned int)keySize + 16; ++i)
 		iv.push_back(data[i]);
 	//and extract ciphertext
-	for (unsigned int i = 4 + (unsigned int)keySize + 128; i < data.size(); ++i)
+	for (unsigned int i = 4 + (unsigned int)keySize + 16; i < data.size(); ++i)
 		ciphertext.push_back(data[i]);
 }
 

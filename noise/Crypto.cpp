@@ -222,7 +222,7 @@ std::vector<unsigned char> Crypto::decryptSymmetric(const SymmetricKey& key, con
 	usedLength += additionalLength;
 	
 	//get result
-	std::vector<unsigned char> plaintext = std::vector<unsigned char>(plaintextBuffer, plaintextBuffer + additionalLength);
+	std::vector<unsigned char> plaintext = std::vector<unsigned char>(plaintextBuffer, plaintextBuffer + usedLength);
 	//cleanup
 	openssl::EVP_CIPHER_CTX_free(cipherContext);
 	delete[](plaintextBuffer);

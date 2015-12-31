@@ -295,6 +295,7 @@ void LocalNoiseInterface::handlePacket(void)
 						mux.unlock();
 
 					}
+					break;
 				}
 
 				case ID_SEND_ENCRYPTED_DATA:
@@ -322,6 +323,8 @@ void LocalNoiseInterface::handlePacket(void)
 					//Append extra NULL so it's a string
 					plaintext.push_back(0);
 					Log::writeToLog(Log::INFO, "Recieved plaintext: ", (char*)plaintext.data());
+
+					break;
 				}
 
 				default:
