@@ -9,6 +9,7 @@
 #include <MessageIdentifiers.h>
 #include "Messages.h"
 #include <BitStream.h>
+#include <stdlib.h>
 #include "Log.h"
 
 namespace openssl
@@ -80,7 +81,12 @@ void LocalNoiseInterface::handlePacket(void)
 	{
 		try
 		{
-			RakNet::Packet* packet = network->handlePacket();
+			RakNet::Packet* packet;
+			if (0 == (packet = network->handlePacket()))
+			{
+				//wait if we didn't get a packet
+				//Sleep(50);
+			}
 			mux.unlock();
 			if (packet)
 			{
@@ -291,6 +297,10 @@ void LocalNoiseInterface::handlePacket(void)
 						SymmetricKey sharedKey;
 						crypto->deriveSharedKey(ourEphemeralKeys[packet->guid], recievedKey, sharedKey);
 						sharedKeys[packet->guid] = sharedKey;
+
+						//clear ephemeral keys
+						ourEphemeralKeys.erase(packet->guid);
+						otherEphemeralKeys.erase(packet->guid);
 						//and send ours along
 						mux.unlock();
 
