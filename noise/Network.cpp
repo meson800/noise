@@ -27,6 +27,7 @@ Network::Network() : port(SERVER_PORT), started(false)
 
 void Network::startNode()
 {
+	mux.lock();
 	if (started)
 	{
 		throw NetworkStartupException("Networking already started");
@@ -46,6 +47,10 @@ void Network::startNode()
 	{
 		Log::writeToLog(Log::FATAL, "Couldn't start networking. Startup error:", e.what());
 	}
+
+	Log::writeToLog(Log::L_DEBUG, "Advertising node...");
+	mux.unlock();
+	broadcastNode();
 }
 
 void Network::shutdownNode()
@@ -97,6 +102,19 @@ RakNet::Packet* Network::handlePacket()
 	//now handle the packets
 	switch (packet->data[0])
 	{
+	case ID_UNCONNECTED_PONG:
+	{
+		Log::writeToLog(Log::INFO, "Got broadcast from system ", packet->guid.ToString());
+		std::string address = std::string(packet->systemAddress.ToString());
+		address = address.substr(0, address.find_first_of('|'));
+		//Try to connect to the system
+		mux.lock();
+		//check that we aren't connecting to ourselves
+		if (packet->guid != ourNode->GetMyGUID())
+			ourNode->Connect(address.c_str(), packet->systemAddress.GetPort(), NULL, 0);
+		mux.unlock();
+		break;
+	}
 	case ID_REMOTE_DISCONNECTION_NOTIFICATION:
 		Log::writeToLog(Log::INFO, "System ", packet->guid.ToString(), " has disconnected");
 		return packet;
@@ -188,6 +206,13 @@ bool Network::isRunning()
 	bool result = started;
 	mux.unlock();
 	return result;
+}
+
+void Network::broadcastNode()
+{
+	mux.lock();
+	ourNode->Ping("255.255.255.255", SERVER_PORT, false);
+	mux.unlock();
 }
 
 void Network::throwStartupExceptions(const RakNet::StartupResult & result)

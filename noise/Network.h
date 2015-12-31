@@ -36,6 +36,8 @@ public:
 	void deallocatePacket(RakNet::Packet*);
 	//Returns if networking is active
 	bool isRunning();
+	//Broadcasts our server over LAN
+	void broadcastNode();
 
 private:
 	//Converts return value of Raknet startup into exceptions
