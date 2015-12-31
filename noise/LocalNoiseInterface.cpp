@@ -81,13 +81,12 @@ void LocalNoiseInterface::handlePacket(void)
 	{
 		try
 		{
-			RakNet::Packet* packet;
-			if (0 == (packet = network->handlePacket()))
-			{
-				//wait if we didn't get a packet
-				//Sleep(50);
-			}
+			RakNet::Packet* packet = network->handlePacket();
 			mux.unlock();
+			if (packet == 0)
+				Sleep(15);
+			//Sleep if we're done with packets for the moment
+
 			if (packet)
 			{
 				switch (packet->data[0])

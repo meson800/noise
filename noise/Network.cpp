@@ -3,6 +3,8 @@
 #include "Log.h"
 #include "Messages.h"
 
+#include <stdlib.h>
+
 #include <RakPeerInterface.h>
 #include <RakNetTypes.h>
 #include <MessageIdentifiers.h>
