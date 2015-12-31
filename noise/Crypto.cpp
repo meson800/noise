@@ -242,9 +242,9 @@ Envelope Crypto::encryptAsymmetric(openssl::EVP_PKEY ** publicKey, std::vector<u
 		throw OpensslException("Couldn't create encryption context");
 
 	//create temp buffers for encrypted key and iv
-	unsigned char* tempEncryptedKey = new unsigned char[256];
+	unsigned char* tempEncryptedKey = new unsigned char[1024];
 	int encryptedKeyLength = 0;
-	unsigned char* tempIv = new unsigned char[128];
+	unsigned char* tempIv = new unsigned char[512];
 	//init envelope creation
 	if (1 != openssl::EVP_SealInit(cipherContext, openssl::EVP_aes_256_cbc(), &tempEncryptedKey, 
 		&encryptedKeyLength, tempIv, publicKey, 1))
@@ -267,7 +267,7 @@ Envelope Crypto::encryptAsymmetric(openssl::EVP_PKEY ** publicKey, std::vector<u
 	//now copy into envelope
 	envelope.ciphertext = std::vector<unsigned char>(tempCiphertext, tempCiphertext + usedLength);
 	envelope.sessionKey = std::vector<unsigned char>(tempEncryptedKey, tempEncryptedKey + encryptedKeyLength);
-	envelope.iv = std::vector<unsigned char>(tempIv, tempIv + 128);
+	envelope.iv = std::vector<unsigned char>(tempIv, tempIv + 16);
 
 	//cleanup
 	openssl::EVP_CIPHER_CTX_free(cipherContext);

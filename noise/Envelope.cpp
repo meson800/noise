@@ -36,8 +36,8 @@ std::vector<unsigned char> Envelope::toBytes()
 	//then pushback key
 	for (unsigned int i = 0; i < (unsigned int)keySize; ++i)
 		result.push_back(sessionKey[i]);
-	//then pushback iv (always 128 bytes)
-	for (unsigned int i = 0; i < 128; ++i)
+	//then pushback iv (always 16 bytes)
+	for (unsigned int i = 0; i < 16; ++i)
 		result.push_back(iv[i]);
 	//then pushback ciphertext
 	for (unsigned int i = 0; i < ciphertext.size(); ++i)
