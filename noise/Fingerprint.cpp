@@ -12,7 +12,6 @@ namespace openssl
 
 Fingerprint::Fingerprint()
 {
-	throw std::runtime_error("Created null fingerprint");
 }
 
 Fingerprint::Fingerprint(openssl::EVP_PKEY * key)
@@ -56,6 +55,8 @@ constexpr char hexmap[] = { '0', '1', '2', '3', '4', '5', '6', '7',
 
 std::string Fingerprint::toString() const
 {
+	if (data.size() == 0)
+		throw std::runtime_error("Can't use empty fingerprint");
 	std::string s(data.size() * 3 - 1, ' ');
 	for (unsigned int i = 0; i < data.size(); ++i) {
 		s[3 * i] = hexmap[(data[i] & 0xF0) >> 4];
@@ -68,6 +69,8 @@ std::string Fingerprint::toString() const
 
 void Fingerprint::toBitStream(RakNet::BitStream & bs) const
 {
+	if (data.size() == 0)
+		throw std::runtime_error("Can't use empty fingerprint");
 	for (unsigned int i = 0; i < data.size(); ++i)
 		bs.Write(data[i]);
 }
@@ -75,7 +78,7 @@ void Fingerprint::toBitStream(RakNet::BitStream & bs) const
 Fingerprint & Fingerprint::operator=(const Fingerprint & other)
 {
 	//only do assignent if it is a different object
-	if (*this != other)
+	if (this != &other)
 	{
 		//the vector automatically cleans up in this assignment
 		data = other.data;
@@ -85,6 +88,8 @@ Fingerprint & Fingerprint::operator=(const Fingerprint & other)
 
 bool Fingerprint::operator<(const Fingerprint & other) const
 {
+	if (data.size() == 0)
+		throw std::runtime_error("Can't use empty fingerprint");
 	//do "alphabetical" comparison, e.g. compare first byte. If it is < other, return true, else return false.
 	//only move on to next character if they are the same
 	if (data.size() != other.data.size())
@@ -106,6 +111,8 @@ bool Fingerprint::operator<(const Fingerprint & other) const
 
 bool Fingerprint::operator==(const Fingerprint & other) const
 {
+	if (data.size() == 0)
+		throw std::runtime_error("Can't use empty fingerprint");
 	if (data.size() != other.data.size())
 		throw FingerprintComparisonException("Fingerprints weren't the same size");
 	for (unsigned int i = 0; i < data.size(); ++i)
@@ -118,5 +125,7 @@ bool Fingerprint::operator==(const Fingerprint & other) const
 
 bool Fingerprint::operator!=(const Fingerprint & other) const
 {
+	if (data.size() == 0)
+		throw std::runtime_error("Can't use empty fingerprint");
 	return !(*this == other);
 }

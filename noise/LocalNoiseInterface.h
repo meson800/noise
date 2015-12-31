@@ -17,6 +17,17 @@ namespace openssl
 	typedef evp_pkey_st EVP_PKEY;
 }
 
+struct DataRequest
+{
+	Fingerprint ourKey;
+	Fingerprint otherKey;
+	openssl::EVP_PKEY* ourEphemeralKey;
+	openssl::EVP_PKEY* otherEphemeralKey;
+	SymmetricKey sharedKey;
+	RakNet::RakNetGUID otherSystem;
+	std::vector<unsigned char> data;
+
+};
 class LocalNoiseInterface : public NoiseInterface
 {
 public:
@@ -76,10 +87,7 @@ private:
 	std::map<Fingerprint, RakNet::RakNetGUID> verifiedSystems;
 	std::map<Fingerprint, std::vector<unsigned char>> liveChallenges;
 
-	std::map<Fingerprint, std::vector<unsigned char>> outgoingData;
-	std::map<RakNet::RakNetGUID, openssl::EVP_PKEY*> ourEphemeralKeys;
-	std::map<RakNet::RakNetGUID, openssl::EVP_PKEY*> otherEphemeralKeys;
-	std::map<RakNet::RakNetGUID, SymmetricKey> sharedKeys;
+	std::map<RakNet::RakNetGUID,DataRequest> outgoingData;
 
 	std::map<RakNet::RakNetGUID, std::vector<Fingerprint>> nodes;
 };

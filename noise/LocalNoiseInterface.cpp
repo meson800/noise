@@ -240,40 +240,30 @@ void LocalNoiseInterface::handlePacket(void)
 
 					mux.lock();
 					openssl::EVP_PKEY* recievedKey = CryptoHelpers::bytesToEcPublicKey(recievedEphemeralKeyData);
-					otherEphemeralKeys[packet->guid] = recievedKey;
+					outgoingData[packet->guid].otherEphemeralKey = recievedKey;
 					//now that we've read a key, let's see if we have sent ours yet
 
-					if (ourEphemeralKeys.count(packet->guid))
+					if (outgoingData[packet->guid].ourEphemeralKey != 0)
 					{
 						Log::writeToLog(Log::INFO, "Deriving shared secret with system ", packet->guid.ToString());
 						//yes, we've sent our key to them. Let's derive a shared secret and send our packet along :)
 						SymmetricKey sharedKey;
-						crypto->deriveSharedKey(ourEphemeralKeys[packet->guid], recievedKey, sharedKey);
-						sharedKeys[packet->guid] = sharedKey;
+						crypto->deriveSharedKey(outgoingData[packet->guid].ourEphemeralKey, recievedKey, sharedKey);
+						outgoingData[packet->guid].sharedKey = sharedKey;
 						//erase ephemeral keys, we must reset for the next packet
-						ourEphemeralKeys.erase(packet->guid);
-						otherEphemeralKeys.erase(packet->guid);
+						//Note that the deriveSharedKey deletes the keys, so just zero this
+						outgoingData[packet->guid].ourEphemeralKey = 0;
+						outgoingData[packet->guid].otherEphemeralKey = 0;
 
 						//find the fingerprint that we want for the encrypted data we want to send
-						Fingerprint fingerprint = outgoingData.begin()->first; //init to random fingerprint to start
-						bool goodFingerprint = false;
-						for (auto it = outgoingData.begin(); it != outgoingData.end(); ++it)
-						{
-							//pick the fingerprint for which we have a shared key
-							if (verifiedSystems[it->first] == packet->guid)
-							{
-								fingerprint = it->first;
-								goodFingerprint = true;
-								break;
-							}
-						}
+						Fingerprint fingerprint = outgoingData[packet->guid].otherKey;
 						mux.unlock();
-						if (goodFingerprint)
+						if (fingerprint.data.size() > 0)
 						{
 							sendEncryptedData(fingerprint);
-							//Clear shared key, we used it once
 							mux.lock();
-							sharedKeys.erase(verifiedSystems[fingerprint]);
+							//Delete the outgoing data, we did it
+							outgoingData.erase(packet->guid);
 							mux.unlock();
 						}
 
@@ -287,19 +277,19 @@ void LocalNoiseInterface::handlePacket(void)
 						openssl::EVP_PKEY* newEphemeralKey = 0;
 						crypto->generateEphemeralKeypair(&newEphemeralKey);
 						//save it
-						ourEphemeralKeys[packet->guid] = newEphemeralKey;
+						outgoingData[packet->guid].ourEphemeralKey = newEphemeralKey;
 						mux.unlock();
 						//we have to send before generating shared secret, as deriving destroys the keys
 						sendEphemeralPublicKey(packet->guid);
 						mux.lock();
 						//generate shared secret 
 						SymmetricKey sharedKey;
-						crypto->deriveSharedKey(ourEphemeralKeys[packet->guid], recievedKey, sharedKey);
-						sharedKeys[packet->guid] = sharedKey;
+						crypto->deriveSharedKey(outgoingData[packet->guid].ourEphemeralKey, recievedKey, sharedKey);
+						outgoingData[packet->guid].sharedKey = sharedKey;
 
 						//clear ephemeral keys
-						ourEphemeralKeys.erase(packet->guid);
-						otherEphemeralKeys.erase(packet->guid);
+						outgoingData[packet->guid].ourEphemeralKey = 0;
+						outgoingData[packet->guid].otherEphemeralKey = 0;
 						//and send ours along
 						mux.unlock();
 
@@ -321,13 +311,13 @@ void LocalNoiseInterface::handlePacket(void)
 
 					//decrypt it!!!
 					mux.lock();
-					std::vector<unsigned char> ciphertext = crypto->decryptSymmetric(sharedKeys[packet->guid], cipherCiphertext);
+					std::vector<unsigned char> ciphertext = crypto->decryptSymmetric(outgoingData[packet->guid].sharedKey, cipherCiphertext);
 					//expand into envelope
 					Envelope envelope = Envelope(ciphertext);
 					//and decrypt envelope
 					std::vector<unsigned char> plaintext = crypto->decryptAsymmetric(ourEncryptionKeys[fingerprint], envelope);
 					//remove shared key, we're done with it
-					sharedKeys.erase(packet->guid);
+					outgoingData.erase(packet->guid);
 					mux.unlock();
 					//Append extra NULL so it's a string
 					plaintext.push_back(0);
@@ -423,7 +413,9 @@ void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system)
 	bs.Write((RakNet::MessageID)ID_SEND_EPHEMERAL_PUBKEY);
 	//Write our ephemeral key for this transfer
 	mux.lock();
-	std::vector<unsigned char> ourEphemeralKey = CryptoHelpers::ecPublicKeyToBytes(ourEphemeralKeys[system]);
+	std::vector<unsigned char> ourEphemeralKey = CryptoHelpers::ecPublicKeyToBytes(outgoingData[system].ourEphemeralKey);
+
+	//sign ephemeral key with our key
 	//and write it into bitstream
 	for (unsigned int i = 0; i < ourEphemeralKey.size(); ++i)
 		bs.Write(ourEphemeralKey[i]);
@@ -441,12 +433,12 @@ void LocalNoiseInterface::sendEncryptedData(const Fingerprint & fingerprint)
 	//see if we have a shared secret and a verified system
 	fingerprint.toBitStream(bs);
 	mux.lock();
-	if (verifiedSystems.count(fingerprint) && sharedKeys.count(verifiedSystems[fingerprint]))
+	if (verifiedSystems.count(fingerprint) && outgoingData[verifiedSystems[fingerprint]].sharedKey.key.size() > 0)
 	{
 		//First make an encrypted envelope
-		Envelope envelope = crypto->encryptAsymmetric(&(otherEncryptionKeys[fingerprint]), outgoingData[fingerprint]);
+		Envelope envelope = crypto->encryptAsymmetric(&(otherEncryptionKeys[fingerprint]), outgoingData[verifiedSystems[fingerprint]].data);
 		//and encrypt it with shared secret
-		std::vector<unsigned char> pfsResult = crypto->encryptSymmetric(sharedKeys[verifiedSystems[fingerprint]], envelope.toBytes());
+		std::vector<unsigned char> pfsResult = crypto->encryptSymmetric(outgoingData[verifiedSystems[fingerprint]].sharedKey, envelope.toBytes());
 		//send it along
 		for (unsigned int i = 0; i < pfsResult.size(); ++i)
 			bs.Write(pfsResult[i]);
@@ -516,14 +508,16 @@ void LocalNoiseInterface::sendData(const Fingerprint & fingerprint, const std::v
 		return;
 	}
 
+	outgoingData[verifiedSystems[fingerprint]].otherKey = fingerprint;
+	outgoingData[verifiedSystems[fingerprint]].otherSystem = verifiedSystems[fingerprint];
 	//Now store the data before kicking off the exchanges
-	outgoingData[fingerprint] = data;
+	outgoingData[verifiedSystems[fingerprint]].data = data;
 
 	//generate us a ephermeral key to send it along
 	openssl::EVP_PKEY* newEpehemeralKey = 0;
 	crypto->generateEphemeralKeypair(&newEpehemeralKey);
 	//save it
-	ourEphemeralKeys[verifiedSystems[fingerprint]] = newEpehemeralKey;
+	outgoingData[verifiedSystems[fingerprint]].ourEphemeralKey = newEpehemeralKey;
 	//and send it along
 	mux.unlock();
 	sendEphemeralPublicKey(fingerprint);
