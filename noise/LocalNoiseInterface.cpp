@@ -233,12 +233,39 @@ void LocalNoiseInterface::handlePacket(void)
 					RakNet::BitStream bsIn(packet->data, packet->length, false);
 					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
 
+					//recieve the signed fingerprint (sending fingerprint), requested fingerprint
+					//, then size of signature, then signature, then ephemeral key
+					Fingerprint signerFingerprint = Fingerprint(bsIn);
+					Fingerprint requestedFingerprint = Fingerprint(bsIn);
+
+					unsigned int signatureSize = 0;
+					bsIn.Read(signatureSize);
+
+					std::vector<unsigned char> recievedSignature;
+					for (unsigned int i = 0; i < signatureSize; ++i)
+					{
+						unsigned char cur = 0;
+						bsIn.Read(cur);
+						recievedSignature.push_back(cur);
+					}
+
 					std::vector<unsigned char> recievedEphemeralKeyData;
 					unsigned char cur = 0;
 					while (bsIn.Read(cur))
 						recievedEphemeralKeyData.push_back(cur);
 
 					mux.lock();
+					//verify the signature
+					if (crypto->verifySignature(otherEncryptionKeys[signerFingerprint], recievedEphemeralKeyData, recievedSignature))
+					{
+						Log::writeToLog(Log::INFO, "Recieved good signature for ephemeral key");
+					}
+					else
+					{
+						Log::writeToLog(Log::INFO, "Recieved invalid signature for ephemeral key, discarding");
+						mux.unlock();
+						break;
+					}
 					openssl::EVP_PKEY* recievedKey = CryptoHelpers::bytesToEcPublicKey(recievedEphemeralKeyData);
 					outgoingData[packet->guid].otherEphemeralKey = recievedKey;
 					//now that we've read a key, let's see if we have sent ours yet
@@ -277,6 +304,8 @@ void LocalNoiseInterface::handlePacket(void)
 						openssl::EVP_PKEY* newEphemeralKey = 0;
 						crypto->generateEphemeralKeypair(&newEphemeralKey);
 						//save it
+						outgoingData[packet->guid].ourKey = requestedFingerprint;
+						outgoingData[packet->guid].otherKey = signerFingerprint;
 						outgoingData[packet->guid].ourEphemeralKey = newEphemeralKey;
 						mux.unlock();
 						//we have to send before generating shared secret, as deriving destroys the keys
@@ -414,6 +443,16 @@ void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system)
 	//Write our ephemeral key for this transfer
 	mux.lock();
 	std::vector<unsigned char> ourEphemeralKey = CryptoHelpers::ecPublicKeyToBytes(outgoingData[system].ourEphemeralKey);
+	std::vector<unsigned char> ourSignature = crypto->signMessage(ourEncryptionKeys[outgoingData[system].ourKey], ourEphemeralKey);
+
+	//now send our fingerprint along, then size of signature, then our ephemeral key
+
+	outgoingData[system].ourKey.toBitStream(bs);
+	outgoingData[system].otherKey.toBitStream(bs);
+
+	bs.Write(ourSignature.size());
+	for (unsigned int i = 0; i < ourSignature.size(); ++i)
+		bs.Write(ourSignature[i]);
 
 	//sign ephemeral key with our key
 	//and write it into bitstream
@@ -508,6 +547,8 @@ void LocalNoiseInterface::sendData(const Fingerprint & fingerprint, const std::v
 		return;
 	}
 
+
+	outgoingData[verifiedSystems[fingerprint]].ourKey = ourEncryptionKeys.begin()->first;
 	outgoingData[verifiedSystems[fingerprint]].otherKey = fingerprint;
 	outgoingData[verifiedSystems[fingerprint]].otherSystem = verifiedSystems[fingerprint];
 	//Now store the data before kicking off the exchanges
