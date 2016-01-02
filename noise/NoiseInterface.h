@@ -34,5 +34,14 @@ public:
 	//generates new non-ephemeral encryption key, returns fingerprint for key
 	virtual Fingerprint generateNewEncryptionKey() = 0;
 	//Returns the number of non-ephemeral keypairs we have
-	virtual unsigned int numEncryptionKeys() = 0;
+	virtual unsigned int numOurEncryptionKeys() = 0;
+	//Gets one of our encryption keys by index
+	virtual Fingerprint getOurEncryptionKeyByIndex(unsigned int index)  = 0;
+	//Returns the number of other encryption keys
+	virtual unsigned int numOtherEncryptionKeys() = 0;
+	//Gets one of the other encryption keys by index
+	virtual Fingerprint getOtherEncryptionKeyByIndex(unsigned int index) = 0;
+
+	//Checks if other encryption key belongs to a verified computer
+	virtual bool hasVerifiedNode(const Fingerprint& fingerprint) = 0;
 };

@@ -156,6 +156,7 @@ void LocalNoiseInterface::handlePacket(void)
 					Fingerprint fingerprint = Fingerprint(newKey);
 					Log::writeToLog(Log::INFO, "Recieved public key ", fingerprint.toString());
 					//insert into our map!
+					otherFingerprints.push_back(fingerprint);
 					otherEncryptionKeys[fingerprint] = newKey;
 
 					//send a challenge--TEMPORARY
@@ -590,6 +591,7 @@ Fingerprint LocalNoiseInterface::generateNewEncryptionKey()
 		//get fingerprint of new key
 		Fingerprint fingerprint = Fingerprint(newKey);
 		//insert into our key map
+		ourFingerprints.push_back(fingerprint);
 		ourEncryptionKeys[fingerprint] = newKey;
 		mux.unlock();
 		return fingerprint;
@@ -599,7 +601,47 @@ Fingerprint LocalNoiseInterface::generateNewEncryptionKey()
 	throw InterfaceException("Crypto not initalized");
 }
 
-unsigned int LocalNoiseInterface::numEncryptionKeys()
+Fingerprint LocalNoiseInterface::getOurEncryptionKeyByIndex(unsigned int index)
+{
+	mux.lock();
+	if (index >= ourEncryptionKeys.size())
+	{
+		mux.unlock();
+		throw std::runtime_error("Encryption key index out of range");
+	}
+	Fingerprint fingerprint = ourFingerprints[index];
+	mux.unlock();
+	return fingerprint;
+}
+
+unsigned int LocalNoiseInterface::numOtherEncryptionKeys()
+{
+	unsigned int result = 0;
+	mux.lock();
+	result = otherEncryptionKeys.size();
+	mux.unlock();
+	return result;
+}
+
+Fingerprint LocalNoiseInterface::getOtherEncryptionKeyByIndex(unsigned int index)
+{
+	mux.lock();
+	if (index >= otherEncryptionKeys.size())
+	{
+		mux.unlock();
+		throw std::runtime_error("Other encryption key index out of range");
+	}
+	Fingerprint fingerprint = otherFingerprints[index];
+	mux.unlock();
+	return fingerprint;
+}
+
+bool LocalNoiseInterface::hasVerifiedNode(const Fingerprint & fingerprint)
+{
+	return false;
+}
+
+unsigned int LocalNoiseInterface::numOurEncryptionKeys()
 {
 	unsigned int result = 0;
 	mux.lock();

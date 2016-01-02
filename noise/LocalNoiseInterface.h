@@ -59,7 +59,16 @@ public:
 	//generates new non-ephemeral encryption key, returns fingerprint for key
 	Fingerprint generateNewEncryptionKey() override;
 	//Returns the number of non-ephemeral keypairs we have
-	unsigned int numEncryptionKeys() override;
+	unsigned int numOurEncryptionKeys() override;
+	//Gets one of our encryption keys by index
+	Fingerprint getOurEncryptionKeyByIndex(unsigned int index) override;
+	//Returns the number of other encryption keys
+	unsigned int numOtherEncryptionKeys() override;
+	//Gets one of the other encryption keys by index
+	Fingerprint getOtherEncryptionKeyByIndex(unsigned int index) override;
+
+	//Checks if other encryption key belongs to a verified computer
+	bool hasVerifiedNode(const Fingerprint& fingerprint) override;
 
 private:
 	//Handles a single packet in the queue
@@ -82,6 +91,8 @@ private:
 	Network* network;
 	Crypto* crypto;
 
+	std::vector<Fingerprint> ourFingerprints;
+	std::vector<Fingerprint> otherFingerprints;
 	std::map<Fingerprint, openssl::EVP_PKEY*> ourEncryptionKeys;
 	std::map<Fingerprint, openssl::EVP_PKEY*> otherEncryptionKeys;
 	std::map<Fingerprint, RakNet::RakNetGUID> verifiedSystems;
