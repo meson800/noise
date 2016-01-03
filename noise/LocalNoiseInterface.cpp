@@ -678,12 +678,19 @@ bool LocalNoiseInterface::writeKeysToFile(std::vector<unsigned char> password)
 	std::vector<unsigned char> seralizedKeys = keysToBytes();
 	//now encrypt it
 	SymmetricKey key = crypto->deriveKeyFromPassword(salt, password);
+	Log::writeToLog(Log::L_DEBUG, "Got salt ", Fingerprint(salt, true).toString(),
+		" and key ", Fingerprint(key.key, true).toString(), " and iv ", Fingerprint(key.iv, true).toString());
+
 	std::vector<unsigned char> ciphertext = crypto->encryptSymmetric(key, seralizedKeys);
+
+	std::vector<unsigned char> result;
+	Helpers::insertVector(result, salt);
+	Helpers::insertVector(result, ciphertext);
 
 	//write it out
 	std::ofstream file = std::ofstream("noise_keys.db", 'w');
-	for (unsigned int i = 0; i < ciphertext.size(); ++i)
-		file << ciphertext[i];
+	for (unsigned int i = 0; i < result.size(); ++i)
+		file << result[i];
 	file.close();
 
 	mux.unlock();
@@ -714,10 +721,13 @@ bool LocalNoiseInterface::loadKeysFromFile(std::vector<unsigned char> password)
 		return true;
 	}
 
-	unsigned char* tempSalt = new unsigned char[8];
-	file.read((char*)tempSalt, 8);
-	std::vector<unsigned char> salt = std::vector<unsigned char>(tempSalt, tempSalt + 8);
-	delete[](tempSalt);
+	std::vector<unsigned char> salt;
+	for (unsigned int i = 0; i < 8; ++i)
+	{
+		char cur = 0;
+		file.get(cur);
+		salt.push_back((unsigned char)cur);
+	}
 
 	//read rest of file in
 	std::vector<unsigned char> bytes;
@@ -728,15 +738,33 @@ bool LocalNoiseInterface::loadKeysFromFile(std::vector<unsigned char> password)
 		bytes.push_back((unsigned char)cur);
 	}
 	file.close();
+	//Ugh, this method leaves us with a trailing NULL
+	//Clean it up
+	bytes.erase(bytes.end() - 1);
 
 	//derive key
 	SymmetricKey key = crypto->deriveKeyFromPassword(salt, password);
+	Log::writeToLog(Log::L_DEBUG, "Got salt ", Fingerprint(salt, true).toString(),
+		" and key ", Fingerprint(key.key, true).toString(), " and iv ", Fingerprint(key.iv, true).toString());
 	//and try to decrypt
-	std::vector<unsigned char> plaintext = crypto->decryptSymmetric(key, bytes);
-	//Turn it into keys
-	bool result = bytesToKeys(plaintext);
+	try
+	{
+		std::vector<unsigned char> plaintext = crypto->decryptSymmetric(key, bytes);
+		//Turn it into keys
+		bool result = bytesToKeys(plaintext);
+		mux.unlock();
+		return result;
+	}
+	catch (const OpensslException& e)
+	{
+		Log::writeToLog(Log::ERR, e.what());
+		openssl::ERR_print_errors_fp(stderr);
+		mux.unlock();
+		return false;
+	}
 	mux.unlock();
-	return result;
+	return false;
+
 }
 
 bool LocalNoiseInterface::loadKeysFromFile()

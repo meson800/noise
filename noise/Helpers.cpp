@@ -22,6 +22,14 @@ void Helpers::uintToBytes(unsigned int num, std::vector<unsigned char>& bytes)
 	bytes.push_back(num & 0xFF);
 }
 
+std::vector<unsigned char> Helpers::stringToBytes(const std::string & str)
+{
+	std::vector<unsigned char> result;
+	for (unsigned int i = 0; i < str.size(); ++i)
+		result.push_back((unsigned char)str[i]);
+	return result;
+}
+
 void Helpers::insertVector(std::vector<unsigned char>& dest, const std::vector<unsigned char>& source)
 {
 	for (unsigned int i = 0; i < source.size(); ++i)

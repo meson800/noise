@@ -16,7 +16,7 @@ int main()
 	Log::setLogfile("noise.log");
 	Log::clearLog();
 	Log::shouldMirrorToConsole(true);
-	Log::setLogLevel(Log::L_DEBUG);
+	Log::setLogLevel(Log::INFO);
 	Log::writeToLog("Starting Noise client...");
 
 

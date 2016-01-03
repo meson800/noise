@@ -2,6 +2,7 @@
 #include "Globals.h"
 #include "NoiseInterface.h"
 #include "Fingerprint.h"
+#include "Helpers.h"
 
 #include <iostream>
 #include <sstream>
@@ -39,7 +40,24 @@ void CLI::runInterface()
 	std::cout << "Network started\n";
 
 	//Load key from file. First see if it is unencrypted
-	inter->loadKeysFromFile();
+	if (!(inter->loadKeysFromFile()))
+	{
+		//aww, it failed. This means that the file must be encrypted or corrupted
+		std::cout << "Couldn't open key database. It's either encrypted or corrupted.\n"
+			<< "If you want to skip database import, just enter an empty password at the following prompts\n"
+			<< "Skipping import will result in a loss of keys!\n";
+		bool done = false;
+		while (!done)
+		{
+			std::cout << "Enter a key database password:";
+			std::string password;
+			std::getline(std::cin, password);
+			if (password.size() == 0)
+				break;
+			done = inter->loadKeysFromFile(Helpers::stringToBytes(password));
+		}
+	}
+	
 	//runs recursively until stopped
 	while (true)
 	{
@@ -77,7 +95,13 @@ void CLI::runInterface()
 			inter->stopNetworking();
 			networkThread.join();
 			//try to save our keys
-			inter->writeKeysToFile();
+			std::cout << "Enter a key database password (press enter to save without encrypting the database):";
+			std::string password;
+			std::getline(std::cin, password);
+			if (password.size() == 0)
+				inter->writeKeysToFile();
+			else
+				inter->writeKeysToFile(Helpers::stringToBytes(password));
 			mut.lock();
 			running = false;
 			mut.unlock();
