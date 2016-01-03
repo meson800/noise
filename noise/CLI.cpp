@@ -37,6 +37,9 @@ void CLI::runInterface()
 	std::cout << "Starting networking...\n";
 	std::thread networkThread(&NoiseInterface::startNetworking, inter,port);
 	std::cout << "Network started\n";
+
+	//Load key from file. First see if it is unencrypted
+	inter->loadKeysFromFile();
 	//runs recursively until stopped
 	while (true)
 	{
@@ -73,6 +76,8 @@ void CLI::runInterface()
 			//shutdown network and close
 			inter->stopNetworking();
 			networkThread.join();
+			//try to save our keys
+			inter->writeKeysToFile();
 			mut.lock();
 			running = false;
 			mut.unlock();

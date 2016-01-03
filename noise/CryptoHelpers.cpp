@@ -59,7 +59,7 @@ std::vector<unsigned char> CryptoHelpers::oslPrivateKeyToBytes(openssl::EVP_PKEY
 	openssl::RSA* rsaKey = openssl::EVP_PKEY_get1_RSA(key);
 	if (!rsaKey)
 		throw KeyConversionException("Failed to extract key from given EVP_PKEY");
-	unsigned char* rawBytes = new unsigned char[1024];
+	unsigned char* rawBytes = new unsigned char[4096];
 	unsigned char* tempP = rawBytes;
 	//NOTE TO PROGRAMMER
 	//Openssl CHANGES the pointer that you give it!!!

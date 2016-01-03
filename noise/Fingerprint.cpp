@@ -40,8 +40,18 @@ Fingerprint::Fingerprint(RakNet::BitStream & bs)
 		throw std::runtime_error("Fingerprint data is not the right size");
 }
 
-Fingerprint::Fingerprint(std::vector<unsigned char> _data) : data(_data)
+Fingerprint::Fingerprint(std::vector<unsigned char> _data, bool isArbitraryData) : data(_data)
 {
+	if (isArbitraryData)
+	{
+		data.clear();
+		unsigned char * tempArray = new unsigned char[SHA_DIGEST_LENGTH];
+		openssl::SHA1(_data.data(), _data.size(), tempArray);
+
+		data = std::vector<unsigned char>(tempArray, tempArray + SHA_DIGEST_LENGTH);
+
+		delete[](tempArray);
+	}
 	if (data.size() != SHA_DIGEST_LENGTH)
 		throw std::runtime_error("Fingerprint data is not the right size");
 }
