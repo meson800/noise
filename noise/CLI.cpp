@@ -3,6 +3,7 @@
 #include "NoiseInterface.h"
 #include "Fingerprint.h"
 #include "Helpers.h"
+#include "Exceptions.h"
 
 #include <iostream>
 #include <sstream>
@@ -109,27 +110,80 @@ void CLI::runInterface()
 		}
 		else if (input.size() == 1 && input.c_str()[0] == 'k')
 		{
-			//create new key
-			Fingerprint fingerprint = inter->generateNewEncryptionKey();
-			inter->advertiseOurPublicKey(fingerprint);
-			std::cout << "Sucessefully created key " << fingerprint.toString() << "\n";
+			//Show key menu
+			std::cout << "---Keys---\n1)Show keypairs\n2)Show public keys\n3)Create new keypair\n>";
+			int choice = 0;
+			std::cin >> choice;
+			switch (choice)
+			{
+			case 0:
+				break;
+			case 1:
+				for (unsigned int i = 0; i < inter->numOurEncryptionKeys(); ++i)
+					std::cout << "Keypair " << i << ":" << inter->getOurEncryptionKeyByIndex(i).toString() << "\n";
+				break;
+			case 2:
+				for (unsigned int i = 0; i < inter->numOtherEncryptionKeys(); ++i)
+					std::cout << "Public key " << i << ":" << inter->getOtherEncryptionKeyByIndex(i).toString() << "\n";
+				break;
+			case 3:
+			{
+				//create new key
+				Fingerprint fingerprint = inter->generateNewEncryptionKey();
+				inter->advertiseOurPublicKey(fingerprint);
+				std::cout << "Sucessefully created key " << fingerprint.toString() << "\n";
+				break;
+			}
+			default:
+				break;
+			}
 		}
 		else if (input.size() == 1 && input.c_str()[0] == 'e')
 		{
-			std::cout << "Enter system GUID to send data to:";
-			std::string guid;
-			std::getline(std::cin, guid);
-			RakNet::RakNetGUID rnGuid;
-			rnGuid.FromString(guid.c_str());
-			Fingerprint fingerprint = inter->getFingerprint(rnGuid);
+			std::cout << "---Send encrypted data---\n";
+			bool bad = false;
+			unsigned int ourKey, otherKey;
+			try
+			{
+				ourKey = selectOurKey();
+			}
+			catch (SelectionException)
+			{
+				std::cout << "No keypairs to send from, generate one from the (k)ey menu\n";
+				bad = true;
+			}
 
-			std::cout << "Enter plaintext to encrypt:";
-			std::string plaintext;
-			std::getline(std::cin, plaintext);
-			std::vector<unsigned char> plaintextBytes;
-			for (unsigned int i = 0; i < plaintext.size(); ++i)
-				plaintextBytes.push_back(plaintext[i]);
-			inter->sendData(fingerprint, plaintextBytes);
+			bool done = false;
+
+			while (!done)
+			{
+				try
+				{
+					otherKey = selectOtherKey();
+					done = true;
+				}
+				catch (SelectionException)
+				{
+					std::cout << "No public keys to select from";
+				}
+				if (!(inter->hasVerifiedNode(inter->getOtherEncryptionKeyByIndex(otherKey))))
+				{
+					std::cout << "No verified node found for public key, unable to send\n";
+					bad = true;
+				}
+			}
+
+			if (!bad)
+			{
+				std::cout << "Enter plaintext to encrypt:";
+				std::string plaintext;
+				std::getline(std::cin, plaintext);
+				std::vector<unsigned char> plaintextBytes;
+				for (unsigned int i = 0; i < plaintext.size(); ++i)
+					plaintextBytes.push_back(plaintext[i]);
+				inter->sendData(inter->getOurEncryptionKeyByIndex(ourKey),
+					inter->getOtherEncryptionKeyByIndex(otherKey), plaintextBytes);
+			}
 		}
 	}
 	mut.lock();
@@ -151,4 +205,50 @@ void CLI::stopInterface()
 	mut.lock();
 	shouldStop = true;
 	mut.unlock();
+}
+
+unsigned int CLI::selectOurKey()
+{
+	bool done = false;
+	unsigned int result = 0;
+	while (!done)
+	{
+		if (inter->numOurEncryptionKeys() == 0)
+			throw SelectionException("No available keypairs to select from");
+		for (unsigned int i = 0; i < inter->numOurEncryptionKeys(); ++i)
+			std::cout << "Keypair " << i << ":" << inter->getOurEncryptionKeyByIndex(i).toString() << "\n>";
+		std::cin >> result;
+
+		if (result >= inter->numOurEncryptionKeys())
+		{
+			std::cout << "Key selected is out of range, select another key\n";
+		}
+		else
+			done = true;
+	}
+	std::cin.ignore(1024, '\n');
+	return result;
+}
+
+unsigned int CLI::selectOtherKey()
+{
+	bool done = false;
+	unsigned int result = 0;
+	while (!done)
+	{
+		if (inter->numOtherEncryptionKeys() == 0)
+			throw SelectionException("No available public keys to select from");
+		for (unsigned int i = 0; i < inter->numOtherEncryptionKeys(); ++i)
+			std::cout << "Public key " << i << ":" << inter->getOtherEncryptionKeyByIndex(i).toString() << "\n>";
+		std::cin >> result;
+
+		if (result >= inter->numOtherEncryptionKeys())
+		{
+			std::cout << "Key selected is out of range, select another key\n";
+		}
+		else
+			done = true;
+	}
+	std::cin.ignore(1024, '\n');
+	return result;
 }

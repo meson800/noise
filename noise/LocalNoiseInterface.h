@@ -49,7 +49,7 @@ public:
 	//Sends a challenge to a server with a associated public key to prove the server has the private key
 	void sendChallenge(RakNet::RakNetGUID system, const Fingerprint& fingerprint) override;
 	//Data is encrypted inside envelope for other public key, then wrapped in a PFS ephemeral key
-	void sendData(const Fingerprint& fingerprint, const std::vector<unsigned char>& data) override;
+	void sendData(const Fingerprint& ourFingerprint, const Fingerprint& otherFingerprint, const std::vector<unsigned char>& data) override;
 	//Gets a verified fingerprint for a given system
 	Fingerprint getFingerprint(RakNet::RakNetGUID system);
 

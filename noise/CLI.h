@@ -18,6 +18,11 @@ public:
 	void stopInterface();
 
 private:
+	//selection functions
+	//These block until the user selects a key to send to/use
+	unsigned int selectOurKey();
+	unsigned int selectOtherKey();
+
 	bool shouldStop;
 	bool running;
 	NoiseInterface* inter;

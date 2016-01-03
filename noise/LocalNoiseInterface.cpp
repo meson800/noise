@@ -539,31 +539,31 @@ void LocalNoiseInterface::sendChallenge(RakNet::RakNetGUID system, const Fingerp
 
 }
 
-void LocalNoiseInterface::sendData(const Fingerprint & fingerprint, const std::vector<unsigned char>& data)
+void LocalNoiseInterface::sendData(const Fingerprint& ourFingerprint, const Fingerprint& otherFingerprint, const std::vector<unsigned char>& data)
 {
 	//Start off by even checking if we have that fingerprint avaliable and a verified system to send it to
 	mux.lock();
-	if (!otherEncryptionKeys.count(fingerprint) && !verifiedSystems.count(fingerprint))
+	if (!otherEncryptionKeys.count(otherFingerprint) && !verifiedSystems.count(otherFingerprint))
 	{
 		mux.unlock();
 		return;
 	}
 
 
-	outgoingData[verifiedSystems[fingerprint]].ourKey = ourEncryptionKeys.begin()->first;
-	outgoingData[verifiedSystems[fingerprint]].otherKey = fingerprint;
-	outgoingData[verifiedSystems[fingerprint]].otherSystem = verifiedSystems[fingerprint];
+	outgoingData[verifiedSystems[otherFingerprint]].ourKey = ourFingerprint;
+	outgoingData[verifiedSystems[otherFingerprint]].otherKey = otherFingerprint;
+	outgoingData[verifiedSystems[otherFingerprint]].otherSystem = verifiedSystems[otherFingerprint];
 	//Now store the data before kicking off the exchanges
-	outgoingData[verifiedSystems[fingerprint]].data = data;
+	outgoingData[verifiedSystems[otherFingerprint]].data = data;
 
 	//generate us a ephermeral key to send it along
 	openssl::EVP_PKEY* newEpehemeralKey = 0;
 	crypto->generateEphemeralKeypair(&newEpehemeralKey);
 	//save it
-	outgoingData[verifiedSystems[fingerprint]].ourEphemeralKey = newEpehemeralKey;
+	outgoingData[verifiedSystems[otherFingerprint]].ourEphemeralKey = newEpehemeralKey;
 	//and send it along
 	mux.unlock();
-	sendEphemeralPublicKey(fingerprint);
+	sendEphemeralPublicKey(otherFingerprint);
 }
 
 Fingerprint LocalNoiseInterface::getFingerprint(RakNet::RakNetGUID system)

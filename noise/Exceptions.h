@@ -61,3 +61,9 @@ class InterfaceException : public std::runtime_error
 public:
 	InterfaceException(const std::string &err) : runtime_error(err) {}
 };
+
+class SelectionException : public std::runtime_error
+{
+public:
+	SelectionException(const std::string &err) : runtime_error(err) {}
+};
