@@ -3,6 +3,7 @@
 #include "Network.h"
 #include "Crypto.h"
 #include "CryptoHelpers.h"
+#include "Helpers.h"
 #include "Exceptions.h"
 
 #include <RakPeerInterface.h>
@@ -638,7 +639,13 @@ Fingerprint LocalNoiseInterface::getOtherEncryptionKeyByIndex(unsigned int index
 
 bool LocalNoiseInterface::hasVerifiedNode(const Fingerprint & fingerprint)
 {
-	return false;
+	bool result = false;
+	mux.lock();
+	if (verifiedSystems.count(fingerprint))
+		result = true;
+	mux.unlock();
+	
+	return result;
 }
 
 unsigned int LocalNoiseInterface::numOurEncryptionKeys()
@@ -648,4 +655,171 @@ unsigned int LocalNoiseInterface::numOurEncryptionKeys()
 	result = ourEncryptionKeys.size();
 	mux.unlock();
 	return result;
+}
+
+
+//Keypair database format
+//All key database files start with the following 8 "magic" bytes
+//0xC0 0xC1 0xC2 0xC3 0xC4 0xC5 0xC6 0xC7
+//After that, we have an unsigned int, which is the number of keypairs (public and private key)
+//Then for each keypair, we get an unsigned int size of public key, then unsigned int of private key
+//After we have done all the keypairs, write the number of other public keys, 
+//then the rest of the public keys are listed, with a unsigned int for size
+bool LocalNoiseInterface::writeKeysToFile(std::vector<unsigned char> password)
+{
+	mux.lock();
+	//Generate a random salt
+	unsigned char* tempSalt = new unsigned char[8];
+	if (1 != openssl::RAND_bytes(tempSalt, 8))
+		throw OpensslException("Couldn't generate a random salt");
+	std::vector<unsigned char> salt = std::vector<unsigned char>(tempSalt, tempSalt + 8);
+	delete[](tempSalt);
+
+	std::vector<unsigned char> seralizedKeys = keysToBytes();
+	//now encrypt it
+	SymmetricKey key = crypto->deriveKeyFromPassword(salt, password);
+	std::vector<unsigned char> ciphertext = crypto->encryptSymmetric(key, seralizedKeys);
+
+	//write it out
+	std::ofstream file = std::ofstream("noise_keys.db", 'w');
+	file.write((char*)ciphertext.data(), ciphertext.size());
+	file.close();
+
+	mux.unlock();
+	return true;
+}
+
+bool LocalNoiseInterface::writeKeysToFile()
+{
+	mux.lock();
+	//Simply write keys out without encryption :(
+	std::ofstream file = std::ofstream("noise_keys.db", 'w');
+	std::vector<unsigned char> seralizedKeys = keysToBytes();
+	file.write((char*)seralizedKeys.data(), seralizedKeys.size());
+	file.close();
+	mux.unlock();
+	return false;
+}
+
+bool LocalNoiseInterface::loadKeysFromFile(std::vector<unsigned char> password)
+{
+	mux.lock();
+	//Open the file, and get the salt
+	std::ifstream file = std::ifstream("noise_keys.db");
+	unsigned char* tempSalt = new unsigned char[8];
+	file.read((char*)tempSalt, 8);
+	std::vector<unsigned char> salt = std::vector<unsigned char>(tempSalt, tempSalt + 8);
+	delete[](tempSalt);
+
+	//read rest of file in
+	std::vector<unsigned char> bytes;
+	while (!file.eof())
+	{
+		char cur = 0;
+		file.get(cur);
+		bytes.push_back((unsigned char)cur);
+	}
+	file.close();
+
+	//derive key
+	SymmetricKey key = crypto->deriveKeyFromPassword(salt, password);
+	//and try to decrypt
+	std::vector<unsigned char> plaintext = crypto->decryptSymmetric(key, bytes);
+	//Turn it into keys
+	bool result = bytesToKeys(plaintext);
+	mux.unlock();
+	return result;
+}
+
+bool LocalNoiseInterface::loadKeysFromFile()
+{
+	mux.lock();
+	//Simply read keys in without encryption :(
+	std::ifstream file = std::ifstream("noise_keys.db");
+	std::vector<unsigned char> bytes;
+	while (!file.eof())
+	{
+		char cur = 0;
+		file.get(cur);
+		bytes.push_back((unsigned char)cur);
+	}
+	file.close();
+	bool result = bytesToKeys(bytes);
+	mux.unlock();
+	return result;
+}
+
+std::vector<unsigned char> LocalNoiseInterface::keysToBytes()
+{
+	std::vector<unsigned char> bytes = { 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7 };
+	//First write number of keypairs
+	Helpers::uintToBytes(ourEncryptionKeys.size(), bytes);
+	//and write key into it
+	for (unsigned int i = 0; i < ourEncryptionKeys.size(); ++i)
+	{
+		std::vector<unsigned char> pubKey = CryptoHelpers::oslPublicKeyToBytes(ourEncryptionKeys[ourFingerprints[i]]);
+		std::vector<unsigned char> privKey = CryptoHelpers::oslPrivateKeyToBytes(ourEncryptionKeys[ourFingerprints[i]]);
+		Helpers::uintToBytes(pubKey.size(), bytes);
+		Helpers::insertVector(bytes, pubKey);
+		Helpers::uintToBytes(privKey.size(), bytes);
+		Helpers::insertVector(bytes, privKey);
+	}
+	//Now write public keys
+	Helpers::uintToBytes(otherEncryptionKeys.size(), bytes);
+	for (unsigned int i = 0; i < otherEncryptionKeys.size(); ++i)
+	{
+		std::vector<unsigned char> pubKey = CryptoHelpers::oslPublicKeyToBytes(otherEncryptionKeys[otherFingerprints[i]]);
+		Helpers::uintToBytes(pubKey.size(), bytes);
+		Helpers::insertVector(bytes, pubKey);
+	}
+	return bytes;
+}
+
+bool LocalNoiseInterface::bytesToKeys(const std::vector<unsigned char>& bytes)
+{
+	//check that the first 8 bytes are our magic keys
+	if (bytes[0] != 0xC0 || bytes[1] != 0xC1 || bytes[2] != 0xC2 || bytes[3] != 0xC3 ||
+		bytes[4] != 0xC3 || bytes[5] != 0xC4 || bytes[6] != 0xC5 || bytes[7] != 0xC6)
+		return false;
+
+	//Okay, our magic bytes are good. Continue deseralization
+	unsigned int idx = 8;
+	unsigned int keypairs = Helpers::bytesToUINT(bytes.data() + idx);
+	idx += 4;
+	for (unsigned int i = 0; i < keypairs; ++i)
+	{
+		//extract public then private key
+		unsigned int pubKeyLength = Helpers::bytesToUINT(bytes.data() + idx);
+		idx += 4;
+		std::vector<unsigned char> pubKey = std::vector<unsigned char>(bytes.data() + idx, bytes.data() + idx + pubKeyLength);
+		idx += pubKeyLength;
+		unsigned int privKeyLength = Helpers::bytesToUINT(bytes.data() + idx);
+		std::vector<unsigned char> privKey = std::vector<unsigned char>(bytes.data() + idx, bytes.data() + idx + privKeyLength);
+		idx += privKeyLength;
+		//get key
+		openssl::EVP_PKEY* newKeypair = CryptoHelpers::bytesToOslKeypair(privKey, pubKey);
+		//insert it into our keymap
+		Fingerprint fingerprint = Fingerprint(newKeypair);
+		Log::writeToLog(Log::INFO, "Read keypair ", fingerprint.toString(), " from database");
+		ourEncryptionKeys[fingerprint] = newKeypair;
+		ourFingerprints.push_back(fingerprint);
+	}
+
+	unsigned int otherKeys = Helpers::bytesToUINT(bytes.data() + idx);
+	idx += 4;
+	for (unsigned int i = 0; i < keypairs; ++i)
+	{
+		unsigned int pubKeyLength = Helpers::bytesToUINT(bytes.data() + idx);
+		idx += 4;
+		std::vector<unsigned char> pubKey = std::vector<unsigned char>(bytes.data() + idx, bytes.data() + idx + pubKeyLength);
+		idx += pubKeyLength;
+
+		//get key
+		openssl::EVP_PKEY* newKey = CryptoHelpers::bytesToOslPublicKey(pubKey);
+		Fingerprint fingerprint = Fingerprint(newKey);
+		Log::writeToLog(Log::INFO, "Read public key ", fingerprint.toString(), " from database");
+		otherEncryptionKeys[fingerprint] = newKey;
+		otherFingerprints.push_back(fingerprint);
+	}
+	return true;
 }

@@ -70,6 +70,22 @@ public:
 	//Checks if other encryption key belongs to a verified computer
 	bool hasVerifiedNode(const Fingerprint& fingerprint) override;
 
+	//--------Persistance Functions-----------------
+	//----------------------------------------------
+
+	//Saves all keys to keys.db file, with a certain password
+	//Returns true if save succeeded, false if it failed
+	bool writeKeysToFile(std::vector<unsigned char> password) override;
+	//Overload, saves with no password
+	bool writeKeysToFile() override;
+
+	//Loads keys from keys.db file, with a certain password
+	//Returns true if loading succeeded, false if it fails
+	//Most failures are caused by incorrect password
+	bool loadKeysFromFile(std::vector<unsigned char> password) override;
+	//Overload, loads without password
+	bool loadKeysFromFile() override;
+
 private:
 	//Handles a single packet in the queue
 	void handlePacket(void);
@@ -85,6 +101,12 @@ private:
 	void sendEphemeralPublicKey(RakNet::RakNetGUID system);
 	//Sends encrypted data using double encryption
 	void sendEncryptedData(const Fingerprint& fingerprint);
+
+	//Extracts all keys to bytes
+	std::vector<unsigned char> keysToBytes();
+	//Turns bytes extracted into keys
+	//Returns true on success
+	bool bytesToKeys(const std::vector<unsigned char>& bytes);
 
 	std::mutex mux;
 

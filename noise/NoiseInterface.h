@@ -44,4 +44,20 @@ public:
 
 	//Checks if other encryption key belongs to a verified computer
 	virtual bool hasVerifiedNode(const Fingerprint& fingerprint) = 0;
+
+	//--------Persistance Functions-----------------
+	//----------------------------------------------
+
+	//Saves all keys to keys.db file, with a certain password
+	//Returns true if save succeeded, false if it failed
+	virtual bool writeKeysToFile(std::vector<unsigned char> password) = 0;
+	//Overload, saves with no password
+	virtual bool writeKeysToFile() = 0;
+
+	//Loads keys from keys.db file, with a certain password
+	//Returns true if loading succeeded, false if it fails
+	//Most failures are caused by incorrect password
+	virtual bool loadKeysFromFile(std::vector<unsigned char> password) = 0;
+	//Overload, loads without password
+	virtual bool loadKeysFromFile() = 0;
 };
