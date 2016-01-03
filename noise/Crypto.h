@@ -38,6 +38,10 @@ public:
 	//Decrypt an envelope
 	std::vector<unsigned char> decryptAsymmetric(openssl::EVP_PKEY* key, const Envelope& envelope);
 
+	//Generate symmetric key from password
+	//Salt should be 8 bytes long, and randomly generated
+	SymmetricKey deriveKeyFromPassword(const std::vector<unsigned char>& salt, const std::vector<unsigned char>& password);
+
 private:
 	openssl::EVP_PKEY_CTX* keyContext;
 

@@ -314,3 +314,24 @@ std::vector<unsigned char> Crypto::decryptAsymmetric(openssl::EVP_PKEY * key, co
 	
 	return plaintext;
 }
+
+SymmetricKey Crypto::deriveKeyFromPassword(const std::vector<unsigned char>& salt, const std::vector<unsigned char>& password)
+{
+	SymmetricKey resultKey;
+
+	unsigned char* tempKey = new unsigned char[256];
+	unsigned char* iv = new unsigned char[16];
+
+	unsigned int keyLength = 0;
+	if (0 == (keyLength = openssl::EVP_BytesToKey(openssl::EVP_aes_256_cbc(), openssl::EVP_sha1(), salt.data(),
+		password.data(), password.size(), 1, tempKey, iv)))
+		throw OpensslException("Couldn't extract key and iv from password");
+
+	resultKey.key = std::vector<unsigned char>(tempKey, tempKey + keyLength);
+	resultKey.iv = std::vector<unsigned char>(iv, iv + 16);
+
+	delete[](tempKey);
+	delete[](iv);
+
+	return resultKey;
+}

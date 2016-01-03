@@ -53,6 +53,55 @@ openssl::EVP_PKEY * CryptoHelpers::bytesToOslPublicKey(const std::vector<unsigne
 	return key;
 }
 
+std::vector<unsigned char> CryptoHelpers::oslPrivateKeyToBytes(openssl::EVP_PKEY * key)
+{
+	Log::writeToLog(Log::L_DEBUG, "Converting private key to bytes");
+	openssl::RSA* rsaKey = openssl::EVP_PKEY_get1_RSA(key);
+	if (!rsaKey)
+		throw KeyConversionException("Failed to extract key from given EVP_PKEY");
+	unsigned char* rawBytes = new unsigned char[1024];
+	unsigned char* tempP = rawBytes;
+	//NOTE TO PROGRAMMER
+	//Openssl CHANGES the pointer that you give it!!!
+	//You MUST give it a temporary pointer that is initally equal to rawBytes!
+	//Openssl increments the pointer it's given after it's done filling
+	//so you need to keep your original pointer around
+	int usedLength;
+	if (!(usedLength = openssl::i2d_RSAPrivateKey(rsaKey, &tempP)))
+		throw KeyConversionException("Failed to convert RSA key into bytes");
+	Log::writeToLog(Log::L_DEBUG, "Converted key to ", usedLength, " bytes");
+
+	std::vector<unsigned char> bytes(rawBytes, rawBytes + usedLength);
+	//free the array
+	delete[] rawBytes;
+	//free the key
+	openssl::RSA_free(rsaKey);
+
+	return bytes;
+}
+
+openssl::EVP_PKEY* CryptoHelpers::bytesToOslKeypair(const std::vector<unsigned char>& privateBytes,
+	const std::vector<unsigned char>& publicBytes)
+{
+	Log::writeToLog(Log::L_DEBUG, "Converting bytes to a public key");
+
+	const unsigned char* dataStart = privateBytes.data();
+	openssl::RSA* rsaKey = openssl::d2i_RSAPrivateKey(NULL, &dataStart, privateBytes.size());
+	if (!rsaKey)
+		throw KeyConversionException("Failed to convert bytes to a private RSA key");
+
+	dataStart = publicBytes.data();
+	openssl::d2i_RSAPublicKey(&rsaKey, &dataStart, publicBytes.size());
+	if (!rsaKey)
+		throw KeyConversionException("Failed to convert bytes to a public RSA key");
+
+	openssl::EVP_PKEY* key = openssl::EVP_PKEY_new();
+	if (!openssl::EVP_PKEY_set1_RSA(key, rsaKey))
+		throw KeyConversionException("Failed to convert RSA key into EVP_PKEY");
+
+	return key;
+}
+
 std::vector<unsigned char> CryptoHelpers::ecPublicKeyToBytes(openssl::EVP_PKEY * key)
 {
 	Log::writeToLog(Log::L_DEBUG, "Converting ephemeral key to bytes");
