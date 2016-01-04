@@ -11,6 +11,7 @@
 #include "Messages.h"
 #include <BitStream.h>
 #include <stdlib.h>
+#include <time.h>
 #include "Log.h"
 
 namespace openssl
@@ -23,6 +24,9 @@ LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0)
 {
 	//we can init crypto at this point
 	crypto = new Crypto();
+
+	//and set advertise time
+	lastAdvertiseTime = time(0);
 }
 
 LocalNoiseInterface::~LocalNoiseInterface()
@@ -84,6 +88,39 @@ void LocalNoiseInterface::handlePacket(void)
 		{
 			RakNet::Packet* packet = network->handlePacket();
 			mux.unlock();
+			//see if it's time to advertise
+			time_t now = time(0);
+			if (now - lastAdvertiseTime > 10)
+			{
+				//advertise our keys and request verification on other keys
+				mux.lock();
+				unsigned int upperBound = ourFingerprints.size();
+				mux.unlock();
+				for (unsigned int i = 0; i < upperBound; ++i)
+				{
+					mux.lock();
+					Fingerprint fingerprint = ourFingerprints[i];
+					mux.unlock();
+					advertiseOurPublicKey(fingerprint);
+				}
+				//now try to verify systems that we haven't verified yet
+				mux.lock();
+				upperBound = otherFingerprints.size();
+				mux.unlock();
+				for (unsigned int i = 0; i < upperBound; ++i)
+				{
+					mux.lock();
+					if (!verifiedSystems.count(otherFingerprints[i]))
+					{
+						Fingerprint fingerprint = otherFingerprints[i];
+						mux.unlock();
+						sendChallenge(RakNet::UNASSIGNED_RAKNET_GUID, fingerprint, true);
+					}
+					else
+						mux.unlock();
+				}
+				lastAdvertiseTime = now;
+			}
 			if (packet == 0)
 				Sleep(15);
 			//Sleep if we're done with packets for the moment
@@ -347,6 +384,12 @@ void LocalNoiseInterface::handlePacket(void)
 					Envelope envelope = Envelope(ciphertext);
 					//and decrypt envelope
 					std::vector<unsigned char> plaintext = crypto->decryptAsymmetric(ourEncryptionKeys[fingerprint], envelope);
+					//save message
+					Message newMessage;
+					newMessage.to = fingerprint;
+					newMessage.from = outgoingData[packet->guid].otherKey;
+					newMessage.message = plaintext;
+					incomingMessages.push_back(newMessage);
 					//remove shared key, we're done with it
 					outgoingData.erase(packet->guid);
 					mux.unlock();
@@ -511,7 +554,7 @@ void LocalNoiseInterface::advertiseOurPublicKey(const Fingerprint& fingerprint)
 	mux.unlock();
 }
 
-void LocalNoiseInterface::sendChallenge(RakNet::RakNetGUID system, const Fingerprint & fingerprint)
+void LocalNoiseInterface::sendChallenge(RakNet::RakNetGUID system, const Fingerprint & fingerprint, bool broadcast)
 {
 	Log::writeToLog(Log::INFO, "Challenging system ", system.ToString(), " with pubkey ", fingerprint.toString());
 	//Generating random 64 byte challenge
@@ -531,7 +574,7 @@ void LocalNoiseInterface::sendChallenge(RakNet::RakNetGUID system, const Fingerp
 	}
 	//Send the challenge along
 	mux.lock();
-	network->sendBitStream(&bs, system, false);
+	network->sendBitStream(&bs, system, broadcast);
 	mux.unlock();
 
 	//and set our challenge into live challenges
@@ -646,6 +689,17 @@ bool LocalNoiseInterface::hasVerifiedNode(const Fingerprint & fingerprint)
 	mux.unlock();
 	
 	return result;
+}
+
+Message LocalNoiseInterface::getEncryptedMessage()
+{
+	if (incomingMessages.size() != 0)
+	{
+		Message message = incomingMessages[0];
+		incomingMessages.erase(incomingMessages.begin());
+		return message;
+	}
+	return Message();
 }
 
 unsigned int LocalNoiseInterface::numOurEncryptionKeys()

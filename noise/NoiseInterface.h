@@ -3,6 +3,7 @@
 #include "Globals.h"
 #include "Fingerprint.h"
 #include <RakNetTypes.h>
+#include "Message.h"
 
 class NoiseInterface
 {
@@ -21,7 +22,7 @@ public:
 	//Advertises one of our encryption public keys
 	virtual void advertiseOurPublicKey(const Fingerprint& fingerprint) = 0;
 	//Sends a challenge to a server with a associated public key to prove the server has the private key
-	virtual void sendChallenge(RakNet::RakNetGUID system, const Fingerprint& fingerprint) = 0;
+	virtual void sendChallenge(RakNet::RakNetGUID system, const Fingerprint& fingerprint, bool broadcast = false) = 0;
 	//Sends a packet of data to another public key
 	//Data is encrypted inside envelope for other public key, then wrapped in a PFS ephemeral key
 	virtual void sendData(const Fingerprint& ourFingerprint, const Fingerprint& otherFingerprint, const std::vector<unsigned char>& data) = 0;
@@ -44,6 +45,9 @@ public:
 
 	//Checks if other encryption key belongs to a verified computer
 	virtual bool hasVerifiedNode(const Fingerprint& fingerprint) = 0;
+
+	//Prints out a message
+	virtual Message getEncryptedMessage() = 0;
 
 	//--------Persistance Functions-----------------
 	//----------------------------------------------

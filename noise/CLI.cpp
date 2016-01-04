@@ -4,6 +4,7 @@
 #include "Fingerprint.h"
 #include "Helpers.h"
 #include "Exceptions.h"
+#include "Log.h"
 
 #include <iostream>
 #include <sstream>
@@ -184,7 +185,33 @@ void CLI::runInterface()
 				inter->sendData(inter->getOurEncryptionKeyByIndex(ourKey),
 					inter->getOtherEncryptionKeyByIndex(otherKey), plaintextBytes);
 			}
+			
 		}
+		else if (input.size() == 1 && input.c_str()[0] == 'm')
+		{
+			Message message;
+			bool done = false;
+			while (!done)
+			{
+				message = inter->getEncryptedMessage();
+				if (message.message.size() == 0)
+				{
+					done = true;
+				}
+				else
+				{
+					std::cout << message.toString() << "\n";
+				}
+			}
+		}
+		else if (input.size() == 2 && input.c_str()[0] == 'd')
+		{
+			if (input.c_str()[1] == '1')
+				Log::shouldMirrorToConsole(true);
+			else
+				Log::shouldMirrorToConsole(false);
+		}
+
 	}
 	mut.lock();
 	running = false;

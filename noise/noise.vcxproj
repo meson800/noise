@@ -138,6 +138,7 @@
     <ClCompile Include="LocalNoiseInterface.cpp" />
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Message.cpp" />
     <ClCompile Include="Network.cpp" />
     <ClCompile Include="SymmetricKey.cpp" />
   </ItemGroup>
@@ -152,6 +153,7 @@
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="LocalNoiseInterface.h" />
     <ClInclude Include="Log.h" />
+    <ClInclude Include="Message.h" />
     <ClInclude Include="Messages.h" />
     <ClInclude Include="Network.h" />
     <ClInclude Include="NoiseInterface.h" />
