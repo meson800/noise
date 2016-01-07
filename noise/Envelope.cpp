@@ -1,5 +1,6 @@
 #include "Envelope.h"
 
+#include <stdexcept>
 Envelope::Envelope() {}
 
 Envelope::Envelope(const std::vector<unsigned char>& data)

@@ -12,12 +12,16 @@
 #include <BitStream.h>
 #include <stdlib.h>
 #include <time.h>
+#ifndef _WIN32
+#include <unistd.h>
+#define Sleep(a) sleep(a)
+#endif
 #include "Log.h"
 
 namespace openssl
 {
-#include <openssl\rand.h>
-#include <openssl\err.h>
+#include <openssl/rand.h>
+#include <openssl/err.h>
 }
 
 LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0)
@@ -180,7 +184,7 @@ void LocalNoiseInterface::handlePacket(void)
 				case ID_SEND_PUBKEY:
 				{
 					RakNet::BitStream bsIn(packet->data, packet->length, false);
-					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
 					//recieve bytes
 					std::vector<unsigned char> pubkeyData;
 					unsigned char cur = 0;
@@ -205,7 +209,7 @@ void LocalNoiseInterface::handlePacket(void)
 				case ID_CHALLENGE_PUBKEY:
 				{
 					RakNet::BitStream bsIn(packet->data, packet->length, false);
-					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
 					//recieve pubkey fingerprint
 					Fingerprint fingerprint = Fingerprint(bsIn);
 					Log::writeToLog(Log::INFO, "Challenge recieved for pubkey ", fingerprint.toString());
@@ -224,7 +228,7 @@ void LocalNoiseInterface::handlePacket(void)
 				case ID_VERIFY_CHALLENGE:
 				{
 					RakNet::BitStream bsIn(packet->data, packet->length, false);
-					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
 					//recieve pubkey fingerprint
 					Fingerprint fingerprint = Fingerprint(bsIn);
 					Log::writeToLog(Log::INFO, "Recieved challenge response for pubkey ", fingerprint.toString());
@@ -270,7 +274,7 @@ void LocalNoiseInterface::handlePacket(void)
 				{
 					Log::writeToLog(Log::INFO, "Recieved ephemeral pubkey from system ", packet->guid.ToString());
 					RakNet::BitStream bsIn(packet->data, packet->length, false);
-					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
 
 					//recieve the signed fingerprint (sending fingerprint), requested fingerprint
 					//, then size of signature, then signature, then ephemeral key
@@ -369,7 +373,7 @@ void LocalNoiseInterface::handlePacket(void)
 				{
 					Log::writeToLog(Log::INFO, "Recieved encrypted data from system ", packet->guid.ToString());
 					RakNet::BitStream bsIn(packet->data, packet->length, false);
-					bsIn.IgnoreBytes(sizeof RakNet::MessageID);
+					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
 					Fingerprint fingerprint = Fingerprint(bsIn);
 					//read bytes in
 					std::vector<unsigned char> cipherCiphertext;

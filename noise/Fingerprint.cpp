@@ -7,7 +7,7 @@
 #include "CryptoHelpers.h"
 namespace openssl
 {
-#include <openssl\sha.h>
+#include <openssl/sha.h>
 }
 
 Fingerprint::Fingerprint()
