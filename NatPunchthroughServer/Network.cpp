@@ -129,10 +129,6 @@ RakNet::Packet* Network::handlePacket()
 
 	case ID_REMOTE_NEW_INCOMING_CONNECTION:
 	case ID_NEW_INCOMING_CONNECTION:
-		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " has connected");
-		return packet;
-		break;
-
 	case ID_CONNECTION_REQUEST_ACCEPTED:
 	{
 		Log::writeToLog(Log::INFO, "Successfully connected to system ", packet->guid.ToString(), " offering NAT services");
