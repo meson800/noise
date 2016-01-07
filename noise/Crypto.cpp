@@ -92,7 +92,7 @@ std::vector<unsigned char> Crypto::signMessage(openssl::EVP_PKEY * key, const st
 		throw OpensslException("Couldn't sign message");
 
 	//call finalization with buffer = null to get length of signature
-	unsigned int signatureLength = 0;
+	size_t signatureLength = 0;
 	if (1 != openssl::EVP_DigestSignFinal(digestContext, NULL, &signatureLength))
 		throw OpensslException("Couldn't finalize signature");
 
@@ -141,7 +141,7 @@ void Crypto::deriveSharedKey(openssl::EVP_PKEY * key, openssl::EVP_PKEY * otherK
 		throw OpensslException("Can't set other peer key in key derivation");
 
 	//determine shared secret length
-	unsigned int secretSize = 0;
+	size_t secretSize = 0;
 	if (1 != openssl::EVP_PKEY_derive(derivationContext, NULL, &secretSize))
 		throw OpensslException("Can't derive shared secret");
 	//create temp buffer
@@ -216,7 +216,7 @@ std::vector<unsigned char> Crypto::decryptSymmetric(const SymmetricKey& key, con
 		throw OpensslException("Couldn't decrypt ciphertext");
 
 	//finalize decryption. Additional plaintext can be written, so account for it
-	int additionalLength = 0;
+ 	int additionalLength = 0;
 	if (1 != openssl::EVP_DecryptFinal(cipherContext, plaintextBuffer + usedLength, &additionalLength))
 		throw OpensslException("Couldn't finalize decryption");
 	usedLength += additionalLength;

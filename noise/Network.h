@@ -2,12 +2,11 @@
 #include <string>
 #include <mutex>
 
+#include <RakNetTypes.h>
 //forward definitions
 namespace RakNet
 {
 	class RakPeerInterface;
-	enum StartupResult;
-	enum ConnectionAttemptResult;
 	struct Packet;
 	class BitStream;
 	struct AddressOrGUID;
