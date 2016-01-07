@@ -15,6 +15,7 @@ namespace RakNet
 	struct Packet;
 	class BitStream;
 	struct AddressOrGUID;
+	class PluginInterface2;
 }
 
 
