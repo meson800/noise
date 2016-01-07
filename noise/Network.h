@@ -3,6 +3,7 @@
 #include <mutex>
 
 #include <RakNetTypes.h>
+#include <NatPunchthroughClient.h>
 //forward definitions
 namespace RakNet
 {
@@ -27,6 +28,8 @@ public:
 	void connectToNode(std::string const &address, unsigned int port);
 	//explicitly connect to node using default port
 	void connectToNode(std::string const &address);
+	//connect with a GUID
+	void connectToNode(RakNet::RakNetGUID system);
 	//Handles one packet from other nodes, returns true if a packet if we want the interface to handle it
 	RakNet::Packet* handlePacket();
 	//Sends an arbitrary bitstream
@@ -37,6 +40,8 @@ public:
 	bool isRunning();
 	//Broadcasts our server over LAN
 	void broadcastNode();
+	//Requests new nodes from directory server
+	void requestNodesFromDirectory();
 
 private:
 	//Converts return value of Raknet startup into exceptions
@@ -48,5 +53,8 @@ private:
 
 	bool started;
 	std::mutex mux;
+
+	RakNet::SystemAddress natServer;
+	RakNet::NatPunchthroughClient natClient;
 
 };

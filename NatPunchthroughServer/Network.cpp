@@ -128,17 +128,16 @@ RakNet::Packet* Network::handlePacket()
 		break;
 
 	case ID_REMOTE_NEW_INCOMING_CONNECTION:
+	case ID_NEW_INCOMING_CONNECTION:
 		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " has connected");
 		return packet;
 		break;
 
 	case ID_CONNECTION_REQUEST_ACCEPTED:
-		Log::writeToLog(Log::INFO, "Successfully connected to system ", packet->guid.ToString());
-		return packet;
-		break;
-
-	case ID_NEW_INCOMING_CONNECTION:
-		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " is trying to connect");
+		Log::writeToLog(Log::INFO, "Successfully connected to system ", packet->guid.ToString(), " offering NAT services");
+		RakNet::BitStream bs;
+		bs.Write((RakNet::MessageID)ID_OFFER_NAT_PUNCHTHROUGH);
+		ourNode->Send(&bs, MEDIUM_PRIORITY, RELIABLE, 0, packet->guid, false);
 		return packet;
 		break;
 

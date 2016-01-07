@@ -8,6 +8,7 @@
 #include <RakPeerInterface.h>
 #include <RakNetTypes.h>
 #include <MessageIdentifiers.h>
+#include <BitStream.h>
 
 Network::Network(unsigned int listenPort) : port(listenPort), started(false)
 {
@@ -48,6 +49,11 @@ void Network::startNode()
 		Log::writeToLog(Log::FATAL, "Couldn't start networking. Startup error:", e.what());
 	}
 
+	//attach to directory server
+	Log::writeToLog(Log::INFO, "Connecting to directory server");
+	ourNode->AttachPlugin(&natClient);
+	ourNode->Connect("titanic.caltech.edu", SERVER_PORT, 0, 0);
+
 	Log::writeToLog(Log::L_DEBUG, "Advertising node...");
 	mux.unlock();
 	broadcastNode();
@@ -66,6 +72,13 @@ void Network::shutdownNode()
 void Network::connectToNode(std::string const &address)
 {
 	connectToNode(address, SERVER_PORT);
+}
+
+void Network::connectToNode(RakNet::RakNetGUID system)
+{
+	//check that we aren't connected
+	if (ourNode->GetConnectionState(system) == RakNet::ConnectionState::IS_NOT_CONNECTED)
+		natClient.OpenNAT(system, natServer);
 }
 
 void Network::connectToNode(std::string const &address, unsigned int port)
@@ -179,6 +192,34 @@ RakNet::Packet* Network::handlePacket()
 		return packet;
 		break;
 
+	case ID_OFFER_NAT_PUNCHTHROUGH:
+		Log::writeToLog(Log::INFO, "System ", packet->systemAddress.ToString(), " is offering NAT punchthrough services");
+		natServer = packet->systemAddress;
+		//request 
+		requestNodesFromDirectory();
+		break;
+
+	case ID_NODE_LIST:
+	{
+		Log::writeToLog(Log::INFO, "Directory send us a node list");
+		RakNet::BitStream bsIn(packet->data, packet->length, false);
+		bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+		RakNet::RakNetGUID newGuid;
+		while (bsIn.Read(newGuid))
+		{
+			connectToNode(newGuid);
+		}
+		break;
+	}
+
+	case ID_NAT_PUNCHTHROUGH_SUCCEEDED:
+	{
+		Log::writeToLog(Log::INFO, "NAT punchthrough successful");
+		connectToNode(packet->systemAddress.ToString(), packet->systemAddress.GetPort());
+		break;
+	}
+
+
 	default:
 		Log::writeToLog(Log::L_DEBUG, "Got packet with identifier ", packet->data[0]);
 		return packet;
@@ -213,6 +254,16 @@ void Network::broadcastNode()
 	mux.lock();
 	ourNode->Ping("255.255.255.255", SERVER_PORT, false);
 	mux.unlock();
+}
+
+void Network::requestNodesFromDirectory()
+{
+	if (natServer.size() > 0)
+	{
+		RakNet::BitStream bs;
+		bs.Write((RakNet::MessageID)ID_REQUEST_NODES);
+		ourNode->Send(&bs, MEDIUM_PRIORITY, RELIABLE, 0, natServer, false);
+	}
 }
 
 void Network::throwStartupExceptions(const RakNet::StartupResult & result)
