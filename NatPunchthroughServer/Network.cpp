@@ -134,12 +134,14 @@ RakNet::Packet* Network::handlePacket()
 		break;
 
 	case ID_CONNECTION_REQUEST_ACCEPTED:
+	{
 		Log::writeToLog(Log::INFO, "Successfully connected to system ", packet->guid.ToString(), " offering NAT services");
 		RakNet::BitStream bs;
 		bs.Write((RakNet::MessageID)ID_OFFER_NAT_PUNCHTHROUGH);
 		ourNode->Send(&bs, MEDIUM_PRIORITY, RELIABLE, 0, packet->guid, false);
 		return packet;
 		break;
+	}
 
 	case ID_NO_FREE_INCOMING_CONNECTIONS:
 		Log::writeToLog(Log::INFO, "Couldn't connect to system ", packet->systemAddress.ToString(), ", too many nodes connected");
