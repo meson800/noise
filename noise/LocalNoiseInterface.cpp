@@ -96,6 +96,10 @@ void LocalNoiseInterface::handlePacket(void)
 			time_t now = time(0);
 			if (now - lastAdvertiseTime > 10)
 			{
+				//request nodes from directory
+				mux.lock();
+				network->requestNodesFromDirectory();
+				mux.unlock();
 				//advertise our keys and request verification on other keys
 				mux.lock();
 				unsigned int upperBound = ourFingerprints.size();

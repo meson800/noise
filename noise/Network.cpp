@@ -258,8 +258,9 @@ void Network::broadcastNode()
 
 void Network::requestNodesFromDirectory()
 {
-	if (natServer.size() > 0)
+	if (ourNode->GetConnectionState(natServer) == RakNet::ConnectionState::IS_CONNECTED)
 	{
+		Log::writeToLog(Log::INFO, "Requesting nodes from directory");
 		RakNet::BitStream bs;
 		bs.Write((RakNet::MessageID)ID_REQUEST_NODES);
 		ourNode->Send(&bs, MEDIUM_PRIORITY, RELIABLE, 0, natServer, false);
