@@ -74,6 +74,13 @@ public:
 	//Gets a message
 	Message getEncryptedMessage() override;
 
+	//--------Helpful Functions---------------------
+	//----------------------------------------------
+	//Attaches a piece of user data to a fingerprint
+	bool setUserData(const Fingerprint& fingerprint, const std::vector<unsigned char>& data) override;
+	//Retrieves user data from a fingerprint
+	std::vector<unsigned char> getUserData(const Fingerprint& fingerprint) override;
+
 	//--------Persistance Functions-----------------
 	//----------------------------------------------
 
@@ -132,4 +139,6 @@ private:
 	std::map<RakNet::RakNetGUID,DataRequest> outgoingData;
 
 	std::map<RakNet::RakNetGUID, std::vector<Fingerprint>> nodes;
+
+	std::map<Fingerprint, std::vector<unsigned char>> userdata;
 };

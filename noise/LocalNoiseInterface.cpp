@@ -710,6 +710,24 @@ Message LocalNoiseInterface::getEncryptedMessage()
 	return Message();
 }
 
+bool LocalNoiseInterface::setUserData(const Fingerprint & fingerprint, const std::vector<unsigned char>& data)
+{
+	if (!ourEncryptionKeys.count(fingerprint) && !otherEncryptionKeys.count(fingerprint))
+	{
+		//we don't have an fingerprint for that key, don't attach data
+		return false;
+	}
+	userdata[fingerprint] = data;
+	return true;
+}
+
+std::vector<unsigned char> LocalNoiseInterface::getUserData(const Fingerprint & fingerprint)
+{
+	if (userdata.count(fingerprint))
+		return userdata[fingerprint];
+	return fingerprint.data;
+}
+
 unsigned int LocalNoiseInterface::numOurEncryptionKeys()
 {
 	unsigned int result = 0;
@@ -860,6 +878,16 @@ std::vector<unsigned char> LocalNoiseInterface::keysToBytes()
 	//and write key into it
 	for (unsigned int i = 0; i < ourEncryptionKeys.size(); ++i)
 	{
+		//insert user data
+		if (userdata.count(ourFingerprints[i]))
+		{
+			Helpers::uintToBytes(userdata[ourFingerprints[i]].size(), bytes);
+			Helpers::insertVector(bytes, userdata[ourFingerprints[i]]);
+		}
+		else
+		{
+			Helpers::uintToBytes(0, bytes);
+		}
 		std::vector<unsigned char> pubKey = CryptoHelpers::oslPublicKeyToBytes(ourEncryptionKeys[ourFingerprints[i]]);
 		std::vector<unsigned char> privKey = CryptoHelpers::oslPrivateKeyToBytes(ourEncryptionKeys[ourFingerprints[i]]);
 		Helpers::uintToBytes(pubKey.size(), bytes);
@@ -874,6 +902,15 @@ std::vector<unsigned char> LocalNoiseInterface::keysToBytes()
 	Helpers::uintToBytes(otherEncryptionKeys.size(), bytes);
 	for (unsigned int i = 0; i < otherEncryptionKeys.size(); ++i)
 	{
+		if (userdata.count(otherFingerprints[i]))
+		{
+			Helpers::uintToBytes(userdata[otherFingerprints[i]].size(), bytes);
+			Helpers::insertVector(bytes, userdata[otherFingerprints[i]]);
+		}
+		else
+		{
+			Helpers::uintToBytes(0, bytes);
+		}
 		std::vector<unsigned char> pubKey = CryptoHelpers::oslPublicKeyToBytes(otherEncryptionKeys[otherFingerprints[i]]);
 		Helpers::uintToBytes(pubKey.size(), bytes);
 		Helpers::insertVector(bytes, pubKey);
@@ -895,6 +932,16 @@ bool LocalNoiseInterface::bytesToKeys(const std::vector<unsigned char>& bytes)
 	idx += 4;
 	for (unsigned int i = 0; i < keypairs; ++i)
 	{
+		//extract userdata
+		unsigned int userdataLength = Helpers::bytesToUINT(bytes.data() + idx);
+		idx += 4;
+		std::vector<unsigned char> newUserdata;
+		if (userdataLength > 0)
+		{
+			newUserdata = std::vector<unsigned char>(bytes.data() + idx, bytes.data() + idx + userdataLength);
+			idx += userdataLength;
+		}
+
 		//extract public then private key
 		unsigned int pubKeyLength = Helpers::bytesToUINT(bytes.data() + idx);
 		idx += 4;
@@ -916,6 +963,9 @@ bool LocalNoiseInterface::bytesToKeys(const std::vector<unsigned char>& bytes)
 			Log::writeToLog(Log::INFO, "Read keypair ", fingerprint.toString(), " from database");
 			ourEncryptionKeys[fingerprint] = newKeypair;
 			ourFingerprints.push_back(fingerprint);
+
+			if (newUserdata.size() > 0)
+				userdata[fingerprint] = newUserdata;
 		}
 		catch (const OpensslException& e)
 		{
@@ -929,6 +979,16 @@ bool LocalNoiseInterface::bytesToKeys(const std::vector<unsigned char>& bytes)
 	idx += 4;
 	for (unsigned int i = 0; i < otherKeys; ++i)
 	{
+		//extract userdata
+		unsigned int userdataLength = Helpers::bytesToUINT(bytes.data() + idx);
+		idx += 4;
+		std::vector<unsigned char> newUserdata;
+		if (userdataLength > 0)
+		{
+			newUserdata = std::vector<unsigned char>(bytes.data() + idx, bytes.data() + idx + userdataLength);
+			idx += userdataLength;
+		}
+
 		unsigned int pubKeyLength = Helpers::bytesToUINT(bytes.data() + idx);
 		idx += 4;
 		std::vector<unsigned char> pubKey = std::vector<unsigned char>(bytes.data() + idx, bytes.data() + idx + pubKeyLength);
@@ -940,6 +1000,9 @@ bool LocalNoiseInterface::bytesToKeys(const std::vector<unsigned char>& bytes)
 		Log::writeToLog(Log::INFO, "Read public key ", fingerprint.toString(), " from database");
 		otherEncryptionKeys[fingerprint] = newKey;
 		otherFingerprints.push_back(fingerprint);
+
+		if (newUserdata.size() > 0)
+			userdata[fingerprint] = newUserdata;
 	}
 	return true;
 }

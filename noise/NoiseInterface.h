@@ -49,6 +49,13 @@ public:
 	//Prints out a message
 	virtual Message getEncryptedMessage() = 0;
 
+	//--------Helpful Functions---------------------
+	//----------------------------------------------
+	//Attaches a piece of user data to a fingerprint
+	virtual bool setUserData(const Fingerprint& fingerprint, const std::vector<unsigned char>& data) = 0;
+	//Retrieves user data from a fingerprint
+	virtual std::vector<unsigned char> getUserData(const Fingerprint& fingerprint) = 0;
+
 	//--------Persistance Functions-----------------
 	//----------------------------------------------
 
