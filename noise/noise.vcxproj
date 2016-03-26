@@ -25,13 +25,13 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -71,10 +71,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);..\..\include;..\..\openssl-32\include;..\..\libraries\RakNet\Source;</IncludePath>
     <LibraryPath>..\..\openssl-32\lib;..\..\lib;$(LibraryPath)</LibraryPath>
+    <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);..\..\include;..\..\openssl-32\include;..\..\libraries\RakNet\Source;</IncludePath>
     <LibraryPath>..\..\openssl-32\lib;..\..\lib;$(LibraryPath)</LibraryPath>
+    <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -82,11 +84,18 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PreprocessorDefinitions>_MBCS;USE_SSLEAY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>crypt32.lib;ws2_32.lib;RakNet_VS2008_LibStatic_Debug_Win32.lib;libeay32.lib;ssleay32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalDependencies>ws2_32.lib;crypt32.lib;RakNet_VS2008_LibStatic_Debug_Win32.lib;libeay32.lib;</AdditionalDependencies>
+    </Lib>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -106,6 +115,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <PreprocessorDefinitions>_MBCS;USE_SSLEAY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -113,6 +123,12 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>crypt32.lib;ws2_32.lib;RakNet_VS2008_LibStatic_Release_Win32.lib;libeay32.lib;ssleay32.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalDependencies>ws2_32.lib;crypt32.libRakNet_VS2008_LibStatic_Release_Win32.lib;libeay32.lib;</AdditionalDependencies>
+    </Lib>
+    <ProjectReference>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -129,7 +145,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="CLI.cpp" />
     <ClCompile Include="Crypto.cpp" />
     <ClCompile Include="CryptoHelpers.cpp" />
     <ClCompile Include="Envelope.cpp" />
@@ -137,14 +152,13 @@
     <ClCompile Include="Helpers.cpp" />
     <ClCompile Include="LocalNoiseInterface.cpp" />
     <ClCompile Include="Log.cpp" />
-    <ClCompile Include="main.cpp" />
     <ClCompile Include="Message.cpp" />
     <ClCompile Include="Network.cpp" />
+    <ClCompile Include="NoiseAPI.cpp" />
     <ClCompile Include="SymmetricKey.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="1984.h" />
-    <ClInclude Include="CLI.h" />
     <ClInclude Include="Crypto.h" />
     <ClInclude Include="CryptoHelpers.h" />
     <ClInclude Include="Envelope.h" />
@@ -157,6 +171,7 @@
     <ClInclude Include="Message.h" />
     <ClInclude Include="Messages.h" />
     <ClInclude Include="Network.h" />
+    <ClInclude Include="NoiseAPI.h" />
     <ClInclude Include="NoiseInterface.h" />
     <ClInclude Include="SymmetricKey.h" />
   </ItemGroup>

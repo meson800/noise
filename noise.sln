@@ -7,7 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "noise", "noise\noise.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NatPunchthroughServer", "NatPunchthroughServer\NatPunchthroughServer.vcxproj", "{8D7F791D-F906-440F-9A0C-2CD0AAE2C74A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NoiseAPI", "NoiseAPI\NoiseAPI.vcxproj", "{45696539-E029-4194-BDDD-441D6786CD96}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CommandLineReferenceImplementation", "CommandLineReferenceImplementation\CommandLineReferenceImplementation.vcxproj", "{90ECFF7D-7503-4D66-892A-1F832FFA65BD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,14 +33,14 @@ Global
 		{8D7F791D-F906-440F-9A0C-2CD0AAE2C74A}.Release|x64.Build.0 = Release|x64
 		{8D7F791D-F906-440F-9A0C-2CD0AAE2C74A}.Release|x86.ActiveCfg = Release|Win32
 		{8D7F791D-F906-440F-9A0C-2CD0AAE2C74A}.Release|x86.Build.0 = Release|Win32
-		{45696539-E029-4194-BDDD-441D6786CD96}.Debug|x64.ActiveCfg = Debug|x64
-		{45696539-E029-4194-BDDD-441D6786CD96}.Debug|x64.Build.0 = Debug|x64
-		{45696539-E029-4194-BDDD-441D6786CD96}.Debug|x86.ActiveCfg = Debug|Win32
-		{45696539-E029-4194-BDDD-441D6786CD96}.Debug|x86.Build.0 = Debug|Win32
-		{45696539-E029-4194-BDDD-441D6786CD96}.Release|x64.ActiveCfg = Release|x64
-		{45696539-E029-4194-BDDD-441D6786CD96}.Release|x64.Build.0 = Release|x64
-		{45696539-E029-4194-BDDD-441D6786CD96}.Release|x86.ActiveCfg = Release|Win32
-		{45696539-E029-4194-BDDD-441D6786CD96}.Release|x86.Build.0 = Release|Win32
+		{90ECFF7D-7503-4D66-892A-1F832FFA65BD}.Debug|x64.ActiveCfg = Debug|x64
+		{90ECFF7D-7503-4D66-892A-1F832FFA65BD}.Debug|x64.Build.0 = Debug|x64
+		{90ECFF7D-7503-4D66-892A-1F832FFA65BD}.Debug|x86.ActiveCfg = Debug|Win32
+		{90ECFF7D-7503-4D66-892A-1F832FFA65BD}.Debug|x86.Build.0 = Debug|Win32
+		{90ECFF7D-7503-4D66-892A-1F832FFA65BD}.Release|x64.ActiveCfg = Release|x64
+		{90ECFF7D-7503-4D66-892A-1F832FFA65BD}.Release|x64.Build.0 = Release|x64
+		{90ECFF7D-7503-4D66-892A-1F832FFA65BD}.Release|x86.ActiveCfg = Release|Win32
+		{90ECFF7D-7503-4D66-892A-1F832FFA65BD}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

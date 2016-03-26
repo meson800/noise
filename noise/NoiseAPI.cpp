@@ -1,6 +1,6 @@
 #include "NoiseAPI.h"
-#include "..\noise\Log.h"
-#include "..\noise\LocalNoiseInterface.h"
+#include "Log.h"
+#include "LocalNoiseInterface.h"
 namespace NoiseAPI
 {
 	NoiseInterface * createNoiseInterface(int portnum)
@@ -12,7 +12,6 @@ namespace NoiseAPI
 		Log::writeToLog("Starting Noise client...");
 
 		NoiseInterface* inter = new LocalNoiseInterface();
-		inter->startNetworking(portnum);
 		return inter;
 	}
 	NoiseInterface * createNoiseInterface()
@@ -21,7 +20,6 @@ namespace NoiseAPI
 	}
 	void destroyNoiseInterface(NoiseInterface * inter)
 	{
-		inter->stopNetworking();
 		delete inter;
 	}
 }
