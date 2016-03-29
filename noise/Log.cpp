@@ -19,7 +19,8 @@ void Log::shouldMirrorToConsole(bool newValue)
 
 void Log::clearLog()
 {
-    std::ofstream logFile = std::ofstream(logFilename, std::ios::out);
+    std::ofstream logFile;
+    logFile.open(logFilename, std::ios::out);
     logFile.close();
 }
 
@@ -36,7 +37,8 @@ bool Log::shouldLog(LogLevel level)
 
 void Log::writeToLogThreadUnsafe()
 {
-    std::ofstream logFile = std::ofstream(logFilename, std::ios::app);
+    std::ofstream logFile;
+    logFile.open(logFilename, std::ios::app);
     logFile << "\n";
     logFile.close();
 	if (writeToConsole)

@@ -768,7 +768,8 @@ bool LocalNoiseInterface::writeKeysToFile(std::vector<unsigned char> password)
 	Helpers::insertVector(result, ciphertext);
 
 	//write it out
-	std::ofstream file = std::ofstream("noise_keys.db", 'w');
+	std::ofstream file;
+        file.open("noise_keys.db", 'w');
 	for (unsigned int i = 0; i < result.size(); ++i)
 		file << result[i];
 	file.close();
@@ -781,7 +782,8 @@ bool LocalNoiseInterface::writeKeysToFile()
 {
 	mux.lock();
 	//Simply write keys out without encryption :(
-	std::ofstream file = std::ofstream("noise_keys.db",  'w');
+	std::ofstream file;
+        file.open("noise_keys.db",  'w');
 	std::vector<unsigned char> seralizedKeys = keysToBytes();
 	for (unsigned int i = 0; i < seralizedKeys.size(); ++i)
 		file << seralizedKeys[i];
@@ -794,7 +796,8 @@ bool LocalNoiseInterface::loadKeysFromFile(std::vector<unsigned char> password)
 {
 	mux.lock();
 	//Open the file, and get the salt
-	std::ifstream file = std::ifstream("noise_keys.db", 'b');
+	std::ifstream file;
+        file.open("noise_keys.db", 'b');
 	if (!file.is_open())
 	{
 		mux.unlock();
@@ -851,7 +854,8 @@ bool LocalNoiseInterface::loadKeysFromFile()
 {
 	mux.lock();
 	//Simply read keys in without encryption :(
-	std::ifstream file = std::ifstream("noise_keys.db", 'b');
+	std::ifstream file;
+        file.open("noise_keys.db", 'b');
 	if (!file.is_open())
 	{
 		mux.unlock();

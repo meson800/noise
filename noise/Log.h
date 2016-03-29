@@ -37,7 +37,8 @@ public:
     {
         if (shouldLog(messageLevel))
         {
-            std::ofstream logFile = std::ofstream(logFilename, std::ios::app);
+            std::ofstream logFile;
+            logFile.open(logFilename, std::ios::app);
             logFile << levelStrings[messageLevel];
             logFile.close();
 			if (writeToConsole)
@@ -52,7 +53,8 @@ public:
     //Generic case, prints out using << operator
     static void writeToLogThreadUnsafe(T first, Types ... rest)
     {
-        std::ofstream logFile = std::ofstream(logFilename, std::ios::app);
+        std::ofstream logFile;
+        logFile.open(logFilename, std::ios::app);
         logFile << first;
         logFile.close();
 		if (writeToConsole)
