@@ -121,7 +121,7 @@ bool Crypto::verifySignature(openssl::EVP_PKEY * key, const std::vector<unsigned
 
 	//verify signature
 	size_t size = signature.size();
-	if (1 == openssl::EVP_DigestVerifyFinal(digestContext, signature.data(), size))
+	if (1 == openssl::EVP_DigestVerifyFinal(digestContext, (unsigned char*)signature.data(), size))
 	{
 		return true;
 	}

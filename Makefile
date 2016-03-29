@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -std=c++11 -g -fpermissive -I../RakNet/Source -pthread
+CFLAGS = -std=c++11 -g -I../RakNet/Source -pthread
 CLIBS = -l crypto -l ssl
 LIB = noise
 LIB_PATH = -L /usr/lib/x86_64-linux-gnu/libfakeroot -L /usr/lib/i386-linux-gnu/mesa -L /lib/i386-linux-gnu -L /usr/lib/i386-linux-gnu -L /usr/local/lib -L /lib/x86_64-linux-gnu -L /usr/lib/x86_64-linux-gnu -L /usr/lib/x86_64-linux-gnu/mesa-egl -L /usr/lib/x86_64-linux-gnu/mesa -L /lib -L /usr/lib
@@ -23,9 +23,31 @@ SERVER_SRCS = NatPunchthroughServer/main.cpp NatPunchthroughServer/Network.cpp
 RAKNET_SRCS = $(wildcard ../RakNet/Source/*.cpp)
 RAKNET_OBJS = $(patsubst %.cpp, %.o, $(RAKNET_SRCS))
 
-all: rakNet noise directoryServer cli
+all: Eall rakNet Edone noise Edone2 directoryServer Edone3 cli Edone4 Eend
+
+Eall:
+	@echo "Starting full Noise build..."
+
+Eend:
+	@echo "Compilation complete!"
+
+Edone:
+	@echo "done"
+
+Edone2:
+	@echo "done"
+
+Edone3:
+	@echo "done"
+
+Edone4:
+	@echo "done"
+pretty:
+	@echo "Building in pretty mode - only errors will be shown"
+	@make -s all
 
 clean:
+	@echo "Starting clean"
 	$(RM) -R count *.o
 	$(RM) -R count noise/*.o
 	$(RM) -R count CommandLineReferenceImplementation/*.o
@@ -36,29 +58,44 @@ clean:
 	$(RM) -R count $(PROG_server)
 	$(RM) -R count $(PROG_cli)
 
-noise: $(OBJS) checkDirs $(LIB_HEADERS_TO_COPY)
+noise: Enoise $(OBJS) checkDirs $(LIB_HEADERS_TO_COPY)
+	@echo -n "Linking libnoise..."
 	ld -Ur $(LIB_PATH) -o noise/noise.o $(OBJS) $(RAKNET_OBJS) $(CLIBS)
 	ar rcs lib/libnoise.a noise/noise.o
 	cp $(LIB_HEADERS_TO_COPY) include
 
+Enoise:
+	@echo  "Compiling Noise library..."
+
 checkDirs:
-	@if [ -d "lib" ]; then echo "Lib directory found"; else mkdir lib; echo "Lib directory created"; fi;
+	@echo -n "Checking for library output folders..."; if [ -d "lib" ]; then echo -n "Lib directory found..."; else mkdir lib; echo -n "Lib directory created..."; fi;
 	@if [ -d "include" ]; then echo "Include directory found"; else mkdir include; echo "Include directory created"; fi;
 
-cli: $(CLI_OBJS)
+cli: Ecli $(CLI_OBJS)
 	$(CC) $(CFLAGS) -L $(CLI_LIB_PATH) -o $(PROG_cli) $(CLI_OBJS) $(CLI_LIBS) 
 
-directoryServer: $(SERVER_OBJS) $(RAKNET_OBJS) noise/Log.o
+Ecli:
+	@echo -n "Compiling CLI..."
+directoryServer: Edirectory  $(SERVER_OBJS) $(RAKNET_OBJS) noise/Log.o
 	$(CC) $(CFLAGS) -o $(PROG_server) $(SERVER_OBJS) $(RAKNET_OBJS) noise/Log.o $(CLIBS) -l pthread
 
-rakNet: rakNetDownload $(RAKNET_OBJS)
+Edirectory:
+	@echo -n "Compiling directory server..."
+
+rakNet: rakNetDownload Eraknet $(RAKNET_OBJS)
+
+Eraknet:
+	@echo -n "Compiling RakNet (this may take a while)..."
 
 rakNetDownload:
-	@echo "Checking for existance of RakNet folder..."
+	@echo -n "Checking for existence of RakNet folder..."
 	@if [ -d "../RakNet" ]; then echo "RakNet correctly downloaded"; else echo "RakNet not downloaded, cloning from Github..."; git clone https://github.com/OculusVR/RakNet.git ../RakNet; fi
 
 CommandLineReferenceImplementation/%.o: CommandLineReferenceImplementation/%.cpp
 	$(CC) $(CFLAGS) -L $(CLI_LIB_PATH) -I $(CLI_INCLUDE_PATH) -c -o $(patsubst %.cpp, %.o, $<) $< 
+
+../RakNet/Source/%.o: ../RakNet/Source/%.cpp
+	$(CC) $(CFLAGS) -Wno-write-strings -c -o $(patsubst %.cpp, %.o, $<) $< $(CLIBS)
 
 %.o:  %.cpp
 	$(CC) $(CFLAGS) -c -o $(patsubst %.cpp, %.o, $<) $< $(CLIBS)

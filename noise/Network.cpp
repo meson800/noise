@@ -102,7 +102,7 @@ RakNet::Packet* Network::handlePacket()
 	if (!started)
 	{
 		mux.unlock();
-		return false;
+		return (RakNet::Packet*)0;
 	}
 	RakNet::Packet* packet = ourNode->Receive();
 	mux.unlock();
