@@ -562,7 +562,8 @@ void LocalNoiseInterface::advertiseOurPublicKey(const Fingerprint& fingerprint)
 	mux.unlock();
 }
 
-void LocalNoiseInterface::sendChallenge(RakNet::RakNetGUID system, const Fingerprint & fingerprint, bool broadcast)
+
+void LocalNoiseInterface::sendChallenge(const RakNet::RakNetGUID& system, const Fingerprint & fingerprint, bool broadcast)
 {
 	Log::writeToLog(Log::INFO, "Challenging system ", system.ToString(), " with pubkey ", fingerprint.toString());
 	//Generating random 64 byte challenge
@@ -617,7 +618,7 @@ void LocalNoiseInterface::sendData(const Fingerprint& ourFingerprint, const Fing
 	sendEphemeralPublicKey(otherFingerprint);
 }
 
-Fingerprint LocalNoiseInterface::getFingerprint(RakNet::RakNetGUID system)
+Fingerprint LocalNoiseInterface::getFingerprint(const RakNet::RakNetGUID& system)
 {
 	mux.lock();
 	for (auto it = verifiedSystems.begin(); it != verifiedSystems.end(); ++it)

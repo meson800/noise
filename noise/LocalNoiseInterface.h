@@ -48,11 +48,11 @@ public:
 	//Advertises one of our encryption public keys
 	void advertiseOurPublicKey(const Fingerprint& fingerprint) override;
 	//Sends a challenge to a server with a associated public key to prove the server has the private key
-	void sendChallenge(RakNet::RakNetGUID system, const Fingerprint& fingerprint, bool broadcast = false) override;
+	void sendChallenge(const RakNet::RakNetGUID& system, const Fingerprint& fingerprint, bool broadcast = false) override;
 	//Data is encrypted inside envelope for other public key, then wrapped in a PFS ephemeral key
 	void sendData(const Fingerprint& ourFingerprint, const Fingerprint& otherFingerprint, const std::vector<unsigned char>& data) override;
 	//Gets a verified fingerprint for a given system
-	Fingerprint getFingerprint(RakNet::RakNetGUID system);
+	Fingerprint getFingerprint(const RakNet::RakNetGUID& system);
 
 	//---------Cryptography Functions----------------
 	//-----------------------------------------------
