@@ -22,6 +22,7 @@ public:
 	Fingerprint(openssl::EVP_PKEY* key);
 	Fingerprint(RakNet::BitStream& bs);
 	Fingerprint(std::vector<unsigned char> _data, bool isArbitraryData = false);
+	Fingerprint(std::string fromString);
 	//Returns fingerprint in human readable form
 	std::string toString() const;
 	void toBitStream(RakNet::BitStream& bs) const;

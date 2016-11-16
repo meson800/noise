@@ -56,6 +56,31 @@ Fingerprint::Fingerprint(std::vector<unsigned char> _data, bool isArbitraryData)
 		throw std::runtime_error("Fingerprint data is not the right size");
 }
 
+unsigned char char2int(unsigned char input)
+{
+	if (input >= '0' && input <= '9')
+		return input - '0';
+	if (input >= 'A' && input <= 'F')
+		return input - 'A' + 10;
+	if (input >= 'a' && input <= 'f')
+		return input - 'a' + 10;
+	return 0;
+}
+
+Fingerprint::Fingerprint(std::string fromString)
+{
+	if ((fromString.size() + 1) % 3 != 0)
+	{
+		throw std::invalid_argument("String must be a valid hex string, separated by colons");	
+	}
+	for (unsigned int i = 0; i < (fromString.size() + 1) / 3; ++i)
+	{
+		data.push_back(char2int(fromString[3 * i]) * 16 + char2int(fromString[3*i + 1]));
+	}
+	if (data.size() != SHA_DIGEST_LENGTH)
+		throw std::runtime_error("Fingerprint data is not the right size");
+}
+
 
 //hexmap and code in toString taken from
 //http://codereview.stackexchange.com/questions/78535/converting-array-of-bytes-to-the-hex-string-representation

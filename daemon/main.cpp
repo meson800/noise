@@ -1,5 +1,6 @@
 #include <noise/NoiseAPI.h>
 #include <noise/NoiseInterface.h>
+#include <noise/Helpers.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -7,6 +8,7 @@
 #include <unistd.h> 
 
 #include <iostream>
+#include <thread>
 
 int main()
 {
@@ -39,7 +41,7 @@ int main()
 	std::cout << "Pipes opened correctly, starting noise...";
 	//now that we have our file descriptors opened up, let's spin up Noise
 	NoiseInterface * inter = NoiseAPI::createNoiseInterface();
-	//inter->startNetworking(50000);
+	std::thread networkingThread(&NoiseInterface::startNetworking, inter, 50000);
 	std::cout << "started successfully!\n";
 	//try to load keys
 	inter->loadKeysFromFile();
@@ -48,9 +50,58 @@ int main()
 	}
 	std::cout << "dameon started using encryption key " << inter->getOurEncryptionKeyByIndex(0).toString() << "\n";
 	//does work
+	unsigned char buf [1024];
+	unsigned int readBytes = 0;
+	bool hasReadKey = false;
+	bool hasSizedKey = false;
+	unsigned int keyLength = 0;
+	unsigned int messageLength = 0;
+	bool hasSizedMessage = 0;
+	bool hasReadMessage = 0;
+	std::vector<unsigned char> accum;
+	Fingerprint key;
+	std::vector<unsigned char> message;
+	while (readBytes = read(input_fd, buf, 1024)) 
+	{
+		accum.insert(accum.end(), buf, buf + readBytes);
+		if (!hasSizedKey && accum.size() >= 4)
+		{
+			keyLength = Helpers::bytesToUINT(accum.data());	
+			accum.erase(accum.begin(), accum.begin() + 4);
+			std::cout << "Sized key to " << keyLength << " bytes\n";
+			hasSizedKey = true;
+		}
+		if (hasSizedKey && !hasReadKey && accum.size() >= keyLength)
+		{
+			key = Fingerprint(std::vector<unsigned char>(accum.begin(), accum.begin() + keyLength));
+			accum.erase(accum.begin(), accum.begin() + keyLength);
+			std::cout << "Read key " << key.toString() << "\n";
+			hasReadKey = true;
+		}
+		if (hasSizedKey && hasReadKey && !hasSizedMessage && accum.size() >= 4)
+		{
+			messageLength = Helpers::bytesToUINT(accum.data());
+			accum.erase(accum.begin(), accum.begin() + 4);
+			std::cout << "Sized message to " << messageLength << " bytes\n";
+			hasSizedMessage = true;
+		}
+		if (hasSizedKey && hasReadKey && hasSizedMessage && !hasReadMessage && accum.size() >= messageLength)
+		{
+			message = std::vector<unsigned char>(accum.begin(), accum.begin() + messageLength);
+			accum.erase(accum.begin(), accum.begin() + messageLength);
+			std::cout << "Message from " << key.toString() << " -";
+			for (unsigned int i = 0; i < message.size(); ++i)
+			{
+				std::cout << message[i];
+			}
+			std::cout << "\n";
+			hasSizedKey = hasReadKey = hasSizedMessage = hasReadMessage = false;
+		}
+	}	
 	std::cout << "daemon shutting down...";
 	inter->writeKeysToFile();
 	inter->stopNetworking();
+	networkingThread.join();
 	NoiseAPI::destroyNoiseInterface(inter);
 	close(input_fd);
 	close(output_fd);
