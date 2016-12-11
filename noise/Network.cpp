@@ -52,7 +52,7 @@ void Network::startNode()
 	//attach to directory server
 	Log::writeToLog(Log::INFO, "Connecting to directory server");
 	ourNode->AttachPlugin(&natClient);
-	ourNode->Connect("titanic.caltech.edu", SERVER_PORT, 0, 0);
+	ourNode->Connect("titanic.caltech.edu", DIRECTORY_SERVER_PORT, 0, 0);
 
 	Log::writeToLog(Log::L_DEBUG, "Advertising node...");
 	mux.unlock();

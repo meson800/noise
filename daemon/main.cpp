@@ -10,6 +10,24 @@
 #include <iostream>
 #include <thread>
 
+bool stopping = false;
+
+void send_messages(NoiseInterface * inter, int output_fd)
+{
+	Message incomingMessage;
+	while (true)
+	{
+		incomingMessage = inter->getEncryptedMessage();
+		if (incomingMessage.message.size() != 0)
+		{
+			write(output_fd, incomingMessage.message.data(), incomingMessage.message.size());
+		}
+		if (stopping)
+			return;
+	}
+}
+			
+
 int main()
 {
 	//create named pipe
@@ -61,6 +79,9 @@ int main()
 	std::vector<unsigned char> accum;
 	Fingerprint key;
 	std::vector<unsigned char> message;
+
+
+	std::thread outputThread(send_messages, inter, output_fd);
 	while (readBytes = read(input_fd, buf, 1024)) 
 	{
 		accum.insert(accum.end(), buf, buf + readBytes);
@@ -95,13 +116,16 @@ int main()
 				std::cout << message[i];
 			}
 			std::cout << "\n";
+			inter->sendData(inter->getOurEncryptionKeyByIndex(0), key, message);
 			hasSizedKey = hasReadKey = hasSizedMessage = hasReadMessage = false;
 		}
 	}	
 	std::cout << "daemon shutting down...";
+	stopping = true;
 	inter->writeKeysToFile();
 	inter->stopNetworking();
 	networkingThread.join();
+	outputThread.join();
 	NoiseAPI::destroyNoiseInterface(inter);
 	close(input_fd);
 	close(output_fd);

@@ -9,6 +9,18 @@
 #include <unistd.h> 
 
 #include <iostream>
+#include <thread>
+
+void read_data(int message_fd)
+{
+	unsigned char buf [1024];
+	unsigned int readBytes = 0;
+	while (readBytes = read(message_fd, buf, 1024)) 
+	{
+		for (unsigned int i = 0; i < readBytes; ++i)
+			std::cout << buf[i];
+	}
+}
 
 int main()
 {
@@ -23,6 +35,8 @@ int main()
 	
 	//do work
 	std::cout << "Opened pipes\n";
+	std::thread readThread(read_data, output_fd);
+
 	std::string input_line;
 	while (getline(std::cin, input_line)) {
 		//split on a dash to send the message
@@ -40,5 +54,6 @@ int main()
 	std::cout << "Closing pipes and exiting\n";
 	close(input_fd);
 	close(output_fd);
+	readThread.join();
 	return 0;
 }

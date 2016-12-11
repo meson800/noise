@@ -25,7 +25,7 @@ Network::Network(unsigned int listenPort) : port(listenPort), started(false)
 	mux.unlock();
 }
 
-Network::Network() : port(SERVER_PORT), started(false)
+Network::Network() : port(DIRECTORY_SERVER_PORT), started(false)
 {
 	lastTime = time(0);
 	Log::writeToLog(Log::L_DEBUG, "No listening port provided, using default port");
