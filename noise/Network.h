@@ -56,5 +56,6 @@ private:
 
 	RakNet::SystemAddress natServer;
 	RakNet::NatPunchthroughClient natClient;
+	RakNet::NatPunchthroughDebugInterface_Printf debugInter;
 
 };

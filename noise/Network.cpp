@@ -52,6 +52,7 @@ void Network::startNode()
 	//attach to directory server
 	Log::writeToLog(Log::INFO, "Connecting to directory server");
 	ourNode->AttachPlugin(&natClient);
+	natClient.SetDebugInterface(&debugInter);
 	ourNode->Connect("titanic.caltech.edu", DIRECTORY_SERVER_PORT, 0, 0);
 	ourNode->Connect("localhost", DIRECTORY_SERVER_PORT, 0, 0);
 
