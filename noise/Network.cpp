@@ -78,8 +78,10 @@ void Network::connectToNode(std::string const &address)
 void Network::connectToNode(RakNet::RakNetGUID system)
 {
 	//check that we aren't connected
-	if (ourNode->GetConnectionState(system) == RakNet::ConnectionState::IS_NOT_CONNECTED
-		|| system != ourNode->GetGuidFromSystemAddress(RakNet::UNASSIGNED_SYSTEM_ADDRESS))
+	if (ourNode->GetConnectionState(system) != RakNet::ConnectionState::IS_PENDING
+		&& ourNode->GetConnectionState(system) != RakNet::ConnectionState::IS_CONNECTING
+		&& ourNode->GetConnectionState(system) != RakNet::ConnectionState::IS_CONNECTED
+		&& system != ourNode->GetGuidFromSystemAddress(RakNet::UNASSIGNED_SYSTEM_ADDRESS))
 	{
 		RakNet::SystemAddress sys_address = ourNode->GetSystemAddressFromGuid(system);
 		Log::writeToLog(Log::INFO, "Attempting NAT punchthrough to ", sys_address.ToString()); 
