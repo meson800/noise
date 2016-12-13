@@ -565,6 +565,11 @@ void LocalNoiseInterface::advertiseOurPublicKey(const Fingerprint& fingerprint)
 
 void LocalNoiseInterface::sendChallenge(const RakNet::RakNetGUID& system, const Fingerprint & fingerprint, bool broadcast)
 {
+	//check that we don't have an active request out
+	if (liveChallenges.count(fingerprint) != 0)
+	{
+		Log::writeToLog(Log::INFO, "Not challenging system ", system.ToString(), ". There is already a live challenge for this pubkey!");
+	}
 	Log::writeToLog(Log::INFO, "Challenging system ", system.ToString(), " with pubkey ", fingerprint.toString());
 	//Generating random 64 byte challenge
 	unsigned char * randomChallenge = new unsigned char[64];
