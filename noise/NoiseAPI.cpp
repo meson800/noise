@@ -16,7 +16,7 @@ namespace NoiseAPI
 	}
 	NoiseInterface * createNoiseInterface()
 	{
-		return createNoiseInterface(50000);
+		return createNoiseInterface(SERVER_PORT);
 	}
 	void destroyNoiseInterface(NoiseInterface * inter)
 	{

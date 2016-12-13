@@ -59,7 +59,7 @@ int main()
 	std::cout << "Pipes opened correctly, starting noise...";
 	//now that we have our file descriptors opened up, let's spin up Noise
 	NoiseInterface * inter = NoiseAPI::createNoiseInterface();
-	std::thread networkingThread(&NoiseInterface::startNetworking, inter, 50000);
+	std::thread networkingThread(&NoiseInterface::startNetworking, inter, SERVER_PORT);
 	std::cout << "started successfully!\n";
 	//try to load keys
 	inter->loadKeysFromFile();
