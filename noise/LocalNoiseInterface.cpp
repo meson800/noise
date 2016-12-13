@@ -162,7 +162,13 @@ void LocalNoiseInterface::handlePacket(void)
 					Log::writeToLog(Log::INFO, "Recieved fingerprint ", fingerprint.toString());
 					//See if we need that fingerprint
 					if (otherEncryptionKeys[fingerprint] == 0)
+					{
 						requestPublickey(fingerprint, packet->guid);
+						break;
+					}
+					//otherwise see if we need it confirmed
+					if (verifiedSystems.count(fingerprint) == 0)
+						sendChallenge(packet->guid, fingerprint);
 					break;
 				}
 
@@ -206,7 +212,8 @@ void LocalNoiseInterface::handlePacket(void)
 					otherEncryptionKeys[fingerprint] = newKey;
 
 					//send a challenge--TEMPORARY
-					sendChallenge(packet->guid, fingerprint);
+					if (verifiedSystems.count(fingerprint) == 0)
+						sendChallenge(packet->guid, fingerprint);
 					break;
 				}
 
