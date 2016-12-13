@@ -122,7 +122,7 @@ void LocalNoiseInterface::handlePacket(void)
 					{
 						Fingerprint fingerprint = otherFingerprints[i];
 						mux.unlock();
-						sendChallenge(RakNet::UNASSIGNED_RAKNET_GUID, fingerprint, true);
+						//sendChallenge(RakNet::UNASSIGNED_RAKNET_GUID, fingerprint, true);
 					}
 					else
 						mux.unlock();
