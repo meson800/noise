@@ -17,6 +17,7 @@ void send_messages(NoiseInterface * inter, int output_fd)
 	Message incomingMessage;
 	while (true)
 	{
+		Helpers::sleep_ms(15);
 		incomingMessage = inter->getEncryptedMessage();
 		if (incomingMessage.message.size() != 0)
 		{
@@ -110,7 +111,7 @@ int main()
 		{
 			message = std::vector<unsigned char>(accum.begin(), accum.begin() + messageLength);
 			accum.erase(accum.begin(), accum.begin() + messageLength);
-			std::cout << "Message from " << key.toString() << " -";
+			std::cout << "Message to " << key.toString() << " -";
 			for (unsigned int i = 0; i < message.size(); ++i)
 			{
 				std::cout << message[i];
