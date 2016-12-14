@@ -2,14 +2,10 @@
 #include "../noise/Globals.h"
 #include "../noise/Log.h"
 #include "../noise/Messages.h"
+#include "../noise/Helpers.h"
 
 #include <stdlib.h>
 #include <BitStream.h>
-#include <time.h>
-#ifndef _WIN32
-#include <unistd.h>
-#define Sleep(a) sleep(a)
-#endif
 
 #include <RakPeerInterface.h>
 #include <RakNetTypes.h>
@@ -84,7 +80,7 @@ RakNet::Packet* Network::handlePacket()
 	if (packet == 0)
 	{
 		//no more packets to handle
-		Sleep(10);
+		Helpers::sleep_ms(10);
 		return 0;
 	}
 
