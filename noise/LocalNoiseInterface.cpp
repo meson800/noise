@@ -11,11 +11,6 @@
 #include "Messages.h"
 #include <BitStream.h>
 #include <stdlib.h>
-#include <time.h>
-#ifndef _WIN32
-#include <unistd.h>
-#define Sleep(a) sleep(a)
-#endif
 #include "Log.h"
 
 namespace openssl
@@ -130,7 +125,7 @@ void LocalNoiseInterface::handlePacket(void)
 				lastAdvertiseTime = now;
 			}
 			if (packet == 0)
-				Sleep(15);
+				Helpers::sleep_ms(15);;
 			//Sleep if we're done with packets for the moment
 
 			if (packet)
@@ -291,12 +286,10 @@ void LocalNoiseInterface::handlePacket(void)
 					//, then size of signature, then signature, then ephemeral key
 					Fingerprint signerFingerprint = Fingerprint(bsIn);
 					Fingerprint requestedFingerprint = Fingerprint(bsIn);
-					Log::writeToLog(Log::INFO, "Read fingerprints for ephemeral key: ", signerFingerprint.toString(), " : ", requestedFingerprint.toString());
 
 					uint32_t signatureSize = 0;
 					bsIn.Read(signatureSize);
 
-					Log::writeToLog(Log::INFO, "Trying to read signature on ephemeral key of size ", signatureSize);
 					std::vector<unsigned char> recievedSignature;
 					for (unsigned int i = 0; i < signatureSize; ++i)
 					{
@@ -512,7 +505,6 @@ void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system)
 	outgoingData[system].ourKey.toBitStream(bs);
 	outgoingData[system].otherKey.toBitStream(bs);
 
-	Log::writeToLog(Log::INFO, "Writing a signature size of ", ourSignature.size(), " as a signature for an ephemeral key");
 	uint32_t signatureSize = ourSignature.size();
 	bs.Write(signatureSize);
 	for (unsigned int i = 0; i < ourSignature.size(); ++i)

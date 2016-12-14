@@ -1,4 +1,9 @@
 #include "Helpers.h"
+#ifdef WIN32
+#include <windows.h>
+#else
+#include <time.h>
+#endif
 
 unsigned int Helpers::bytesToUINT(const unsigned char * bytes)
 {
@@ -20,6 +25,18 @@ void Helpers::uintToBytes(unsigned int num, std::vector<unsigned char>& bytes)
 	bytes.push_back((num >> 16) & 0xFF);
 	bytes.push_back((num >> 8) & 0xFF);
 	bytes.push_back(num & 0xFF);
+}
+
+void Helpers::sleep_ms(unsigned int ms)
+{
+#ifdef WIN32
+	Sleep(ms);
+#else
+	struct timespec ts;
+	ts.tv_sec = ms / 1000;
+	ts.tv_nsec = (ms % 1000) * 1000 * 1000;
+	nanosleep(&ts, NULL);
+#endif
 }
 
 std::vector<unsigned char> Helpers::stringToBytes(const std::string & str)
