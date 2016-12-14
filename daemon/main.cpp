@@ -21,6 +21,7 @@ void send_messages(NoiseInterface * inter, int output_fd)
 		incomingMessage = inter->getEncryptedMessage();
 		if (incomingMessage.message.size() != 0)
 		{
+			std::cout << "Recieved a message:" << incomingMessage.toString() << "\n";
 			write(output_fd, incomingMessage.message.data(), incomingMessage.message.size());
 		}
 		if (stopping)

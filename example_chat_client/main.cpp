@@ -15,7 +15,7 @@ void read_data(int message_fd)
 {
 	unsigned char buf [1024];
 	unsigned int readBytes = 0;
-	while (readBytes = read(message_fd, buf, 1024)) 
+	while (readBytes = read(message_fd, buf, 1)) 
 	{
 		for (unsigned int i = 0; i < readBytes; ++i)
 			std::cout << buf[i];
