@@ -293,7 +293,7 @@ void LocalNoiseInterface::handlePacket(void)
 					Fingerprint requestedFingerprint = Fingerprint(bsIn);
 					Log::writeToLog(Log::INFO, "Read fingerprints for ephemeral key: ", signerFingerprint.toString(), " : ", requestedFingerprint.toString());
 
-					unsigned int signatureSize = 0;
+					uint32_t signatureSize = 0;
 					bsIn.Read(signatureSize);
 
 					Log::writeToLog(Log::INFO, "Trying to read signature on ephemeral key of size ", signatureSize);
@@ -513,7 +513,8 @@ void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system)
 	outgoingData[system].otherKey.toBitStream(bs);
 
 	Log::writeToLog(Log::INFO, "Writing a signature size of ", ourSignature.size(), " as a signature for an ephemeral key");
-	bs.Write(ourSignature.size());
+	uint32_t signatureSize = ourSignature.size();
+	bs.Write(signatureSize);
 	for (unsigned int i = 0; i < ourSignature.size(); ++i)
 		bs.Write(ourSignature[i]);
 
