@@ -291,10 +291,12 @@ void LocalNoiseInterface::handlePacket(void)
 					//, then size of signature, then signature, then ephemeral key
 					Fingerprint signerFingerprint = Fingerprint(bsIn);
 					Fingerprint requestedFingerprint = Fingerprint(bsIn);
+					Log::writeToLog(Log::INFO, "Read fingerprints for ephemeral key: ", signerFingerprint.toString(), " : ", requestedFingerprint.toString());
 
 					unsigned int signatureSize = 0;
 					bsIn.Read(signatureSize);
 
+					Log::writeToLog(Log::INFO, "Trying to read signature on ephemeral key of size ", signatureSize);
 					std::vector<unsigned char> recievedSignature;
 					for (unsigned int i = 0; i < signatureSize; ++i)
 					{
@@ -510,6 +512,7 @@ void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system)
 	outgoingData[system].ourKey.toBitStream(bs);
 	outgoingData[system].otherKey.toBitStream(bs);
 
+	Log::writeToLog(Log::INFO, "Writing a signature size of ", ourSignature.size(), " as a signature for an ephemeral key");
 	bs.Write(ourSignature.size());
 	for (unsigned int i = 0; i < ourSignature.size(); ++i)
 		bs.Write(ourSignature[i]);

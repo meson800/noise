@@ -102,6 +102,7 @@ std::vector<unsigned char> Crypto::signMessage(openssl::EVP_PKEY * key, const st
 	if (1 != openssl::EVP_DigestSignFinal(digestContext, tempBuffer, &signatureLength))
 		throw OpensslException("Couldn't extract signature");
 
+	Log::writeToLog(Log::INFO, "Created signature of size ", signatureLength);
 	//Now init result
 	std::vector<unsigned char> result(tempBuffer, tempBuffer + signatureLength);
 	return result;
@@ -121,10 +122,12 @@ bool Crypto::verifySignature(openssl::EVP_PKEY * key, const std::vector<unsigned
 
 	//verify signature
 	size_t size = signature.size();
+	Log::writeToLog(Log::INFO, "Read signature of size ", size);
 	if (1 == openssl::EVP_DigestVerifyFinal(digestContext, (unsigned char*)signature.data(), size))
 	{
 		return true;
 	}
+	openssl::ERR_print_errors_fp(stdout);
 	return false;
 }
 void Crypto::deriveSharedKey(openssl::EVP_PKEY * key, openssl::EVP_PKEY * otherKey, 
