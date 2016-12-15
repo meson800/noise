@@ -5,6 +5,14 @@
 #include <time.h>
 #endif
 
+#include "Log.h"
+
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <stdexcept>
+
 unsigned int Helpers::bytesToUINT(const unsigned char * bytes)
 {
 	return ( (bytes[0] << 24) + (bytes[1] << 16) + (bytes[2] << 8) + bytes[3]);
@@ -38,6 +46,23 @@ void Helpers::sleep_ms(unsigned int ms)
 	nanosleep(&ts, NULL);
 #endif
 }
+
+void Helpers::writeToFd(int fd, const std::vector<unsigned char>& bytes)
+{
+	int cur_index = 0;
+	while (cur_index < bytes.size())
+	{
+		int result = write(fd, bytes.data() + cur_index, bytes.size() - cur_index);
+		if (result == -1)
+		{
+			Log::writeToLog(Log::ERR, "Write to fd ", fd, "failed with error ", strerror(errno));
+			throw std::runtime_error("Write threw an exception");
+		}
+		cur_index += result;
+	}
+}
+			
+	
 
 std::vector<unsigned char> Helpers::stringToBytes(const std::string & str)
 {

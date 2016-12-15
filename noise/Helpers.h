@@ -11,6 +11,7 @@ public:
 	static void uintToBytes(unsigned int num, std::vector<unsigned char>& bytes);
 	static std::vector<unsigned char> stringToBytes(const std::string& str);
 	static void sleep_ms(unsigned int ms);
+	static void writeToFd(int fd, const std::vector<unsigned char>& bytes);
 
 	//Copy functions
 	static void insertVector(std::vector<unsigned char>& dest, const std::vector<unsigned char>& source);

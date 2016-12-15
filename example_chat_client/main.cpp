@@ -3,6 +3,7 @@
 #include <noise/Fingerprint.h>
 #include <noise/Helpers.h>
 
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -44,11 +45,11 @@ int main()
 		std::string message = input_line.substr(input_line.find_first_of('-') + 1);	
 		std::vector<unsigned char> data = Helpers::stringToBytes(message);
 		std::vector<unsigned char> fingerprint_size = Helpers::uintToBytes(fingerprint.data.size());
-		write(input_fd, fingerprint_size.data(), fingerprint_size.size());
-		write(input_fd,fingerprint.data.data(), fingerprint.data.size());
+		Helpers::writeToFd(input_fd, fingerprint_size);	
+		Helpers::writeToFd(input_fd, fingerprint.data);
 		std::vector<unsigned char> message_size = Helpers::uintToBytes(message.size());
-		write(input_fd, message_size.data(), message_size.size());
-		write(input_fd, data.data(), message.size());
+		Helpers::writeToFd(input_fd, message_size);
+		Helpers::writeToFd(input_fd, data);
 	}
 	write(input_fd, "Test", sizeof("Test"));
 	std::cout << "Closing pipes and exiting\n";

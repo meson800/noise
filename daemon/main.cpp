@@ -22,7 +22,7 @@ void send_messages(NoiseInterface * inter, int output_fd)
 		if (incomingMessage.message.size() != 0)
 		{
 			std::cout << "Recieved a message:" << incomingMessage.toString() << "\n";
-			write(output_fd, incomingMessage.message.data(), incomingMessage.message.size());
+			Helpers::writeToFd(output_fd, incomingMessage.message);
 		}
 		if (stopping)
 			return;
