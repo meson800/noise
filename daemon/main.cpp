@@ -21,7 +21,12 @@ void send_messages(NoiseInterface * inter, int output_fd)
 		incomingMessage = inter->getEncryptedMessage();
 		if (incomingMessage.message.size() != 0)
 		{
-			std::cout << "Recieved a message:" << incomingMessage.toString() << "\n";
+			std::vector<unsigned char> fingerprintSize = Helpers::uintToBytes(incomingMessage.from.data.size());
+			Helpers::writeToFd(output_fd, fingerprintSize);
+			Helpers::writeToFd(output_fd, incomingMessage.from.data);
+
+			std::vector<unsigned char> messageSize = Helpers::uintToBytes(incomingMessage.message.size());
+			Helpers::writeToFd(output_fd, messageSize);
 			Helpers::writeToFd(output_fd, incomingMessage.message);
 		}
 		if (stopping)
