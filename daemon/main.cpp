@@ -96,14 +96,12 @@ int main()
 		{
 			keyLength = Helpers::bytesToUINT(accum.data());	
 			accum.erase(accum.begin(), accum.begin() + 4);
-			std::cout << "Sized key to " << keyLength << " bytes\n";
 			hasSizedKey = true;
 		}
 		if (hasSizedKey && !hasReadKey && accum.size() >= keyLength)
 		{
 			key = Fingerprint(std::vector<unsigned char>(accum.begin(), accum.begin() + keyLength));
 			accum.erase(accum.begin(), accum.begin() + keyLength);
-			std::cout << "Read key " << key.toString() << "\n";
 			hasReadKey = true;
 		}
 		if (hasSizedKey && hasReadKey && !hasSizedMessage && accum.size() >= 4)
@@ -117,12 +115,7 @@ int main()
 		{
 			message = std::vector<unsigned char>(accum.begin(), accum.begin() + messageLength);
 			accum.erase(accum.begin(), accum.begin() + messageLength);
-			std::cout << "Message to " << key.toString() << " -";
-			for (unsigned int i = 0; i < message.size(); ++i)
-			{
-				std::cout << message[i];
-			}
-			std::cout << "\n";
+			std::cout << "Message to " << key.toString() << " of size " << messageLength << "\n";
 			inter->sendData(inter->getOurEncryptionKeyByIndex(0), key, message);
 			hasSizedKey = hasReadKey = hasSizedMessage = hasReadMessage = false;
 		}
