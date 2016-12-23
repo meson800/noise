@@ -1,6 +1,9 @@
 #include "NoiseAPI.h"
 #include "Log.h"
 #include "LocalNoiseInterface.h"
+
+void libnoise_is_present(void) {}
+
 namespace NoiseAPI
 {
 	NoiseInterface * createNoiseInterface(int portnum)
