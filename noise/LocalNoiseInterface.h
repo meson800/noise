@@ -85,6 +85,10 @@ public:
 	bool setUserData(const Fingerprint& fingerprint, const std::vector<unsigned char>& data) override;
 	//Retrieves user data from a fingerprint
 	std::vector<unsigned char> getUserData(const Fingerprint& fingerprint) override;
+	//Takes a pointer to a callback class to recieve callback information, returns if it was successful
+	bool addCallbackClass(NoiseAPI::NoiseCallbacks * callback);
+	//Removes the callback class, returns if it succeeded
+	bool removeCallbackClass(NoiseAPI::NoiseCallbacks * callback);
 
 	//--------Persistance Functions-----------------
 	//----------------------------------------------

@@ -740,6 +740,16 @@ std::vector<unsigned char> LocalNoiseInterface::getUserData(const Fingerprint & 
 	return fingerprint.data;
 }
 
+bool LocalNoiseInterface::addCallbackClass(NoiseAPI::NoiseCallbacks * callback)
+{
+	return false;
+}
+
+bool LocalNoiseInterface::removeCallbackClass(NoiseAPI::NoiseCallbacks * callback)
+{
+	return false;
+}
+
 unsigned int LocalNoiseInterface::numOurEncryptionKeys()
 {
 	unsigned int result = 0;
