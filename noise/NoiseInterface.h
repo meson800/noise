@@ -4,9 +4,15 @@
 #include "Fingerprint.h"
 #include "Message.h"
 
+
 namespace RakNet
 {
 	struct RakNetGUID;
+}
+
+namespace NoiseAPI
+{
+	class NoiseCallbacks;
 }
 
 class NoiseInterface
@@ -59,6 +65,10 @@ public:
 	virtual bool setUserData(const Fingerprint& fingerprint, const std::vector<unsigned char>& data) = 0;
 	//Retrieves user data from a fingerprint
 	virtual std::vector<unsigned char> getUserData(const Fingerprint& fingerprint) = 0;
+	//Takes a pointer to a callback class to recieve callback information, returns if it was successful
+	virtual bool addCallbackClass(NoiseAPI::NoiseCallbacks * callback) = 0;
+	//Removes the callback class, returns if it succeeded
+	virtual bool removeCallbackClass(NoiseAPI::NoiseCallbacks * callback) = 0;
 
 	//--------Persistance Functions-----------------
 	//----------------------------------------------
