@@ -18,6 +18,11 @@ namespace openssl
 	typedef evp_pkey_st EVP_PKEY;
 }
 
+namespace NoiseAPI
+{
+	class NoiseCallbacks;
+}
+
 struct DataRequest
 {
 	Fingerprint ourKey;

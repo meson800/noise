@@ -5,11 +5,13 @@
 #include "CryptoHelpers.h"
 #include "Helpers.h"
 #include "Exceptions.h"
+#include "NoiseCallbacks.h"
 
 #include <RakPeerInterface.h>
 #include <MessageIdentifiers.h>
 #include "Messages.h"
 #include <BitStream.h>
+#include <algorithm>
 #include <stdlib.h>
 #include "Log.h"
 
