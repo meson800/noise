@@ -132,11 +132,14 @@ private:
 	time_t lastAdvertiseTime;
 
 	std::mutex mux;
+	std::mutex callbackMux;
 
 	Network* network;
 	Crypto* crypto;
 
 	std::vector<Message> incomingMessages;
+
+	std::vector<NoiseAPI::NoiseCallbacks *> registeredCallbacks;
 
 	std::vector<Fingerprint> ourFingerprints;
 	std::vector<Fingerprint> otherFingerprints;
