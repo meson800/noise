@@ -141,6 +141,29 @@ void LocalNoiseInterface::handlePacket(void)
 					//remove from our list of nodes
 					if (nodes.count(packet->guid))
 						nodes.erase(packet->guid);
+					//and check our list of verified systems
+					{
+						auto verified_it = verifiedSystems.begin();
+						while (verified_it != verifiedSystems.begin())
+						{
+							if (verified_it->second == packet->guid)
+							{
+								verifiedSystems.erase(verified_it++);
+							}
+							else
+							{
+								++verified_it;
+							}
+						}
+					}
+					//and call the callbacks
+					mux.lock();
+					for (auto it = registeredCallbacks.begin(); it != registeredCallbacks.end(); ++it)
+					{
+						(*it)->NodeDisconnected(packet->guid.g);
+					}
+					mux.unlock();
+
 					break;
 
 				case ID_REMOTE_NEW_INCOMING_CONNECTION:
@@ -148,6 +171,13 @@ void LocalNoiseInterface::handlePacket(void)
 				case ID_NEW_INCOMING_CONNECTION:
 					//add to our list of nodes
 					nodes[packet->guid] = std::vector<Fingerprint>();
+					//call the callbacks
+					mux.lock();
+					for (auto it = registeredCallbacks.begin(); it != registeredCallbacks.end(); ++it)
+					{
+						(*it)->NodeConnected(packet->guid.g);
+					}
+					mux.unlock();
 					break;
 
 				case ID_OFFER_PUBKEY:
@@ -261,6 +291,12 @@ void LocalNoiseInterface::handlePacket(void)
 							//remove from challenges and verify
 							verifiedSystems[fingerprint] = packet->guid;
 							liveChallenges.erase(fingerprint);
+
+							//call callbacks
+							for (auto it = registeredCallbacks.begin(); it != registeredCallbacks.end(); ++it)
+							{
+								(*it)->FingerprintVerified(packet->guid.g, fingerprint);
+							}
 						}
 						else
 						{
@@ -402,6 +438,11 @@ void LocalNoiseInterface::handlePacket(void)
 					newMessage.from = outgoingData[packet->guid].otherKey;
 					newMessage.message = plaintext;
 					incomingMessages.push_back(newMessage);
+					//now try pushing the callbacks
+					for (auto it = registeredCallbacks.begin(); it != registeredCallbacks.end(); ++it)
+					{
+						(*it)->MessageRecieved(newMessage);
+					}
 					//remove shared key, we're done with it
 					outgoingData.erase(packet->guid);
 					mux.unlock();
@@ -742,11 +783,32 @@ std::vector<unsigned char> LocalNoiseInterface::getUserData(const Fingerprint & 
 
 bool LocalNoiseInterface::addCallbackClass(NoiseAPI::NoiseCallbacks * callback)
 {
+	mux.lock();
+	if (std::find(registeredCallbacks.begin(), registeredCallbacks.end(), callback) == registeredCallbacks.end())
+	{
+		registeredCallbacks.push_back(callback);
+		mux.unlock();
+		return true;
+	}
+	mux.unlock();
 	return false;
 }
 
 bool LocalNoiseInterface::removeCallbackClass(NoiseAPI::NoiseCallbacks * callback)
 {
+	mux.lock();
+	auto it = registeredCallbacks.begin();
+	while (it != registeredCallbacks.end())
+	{
+		if (*it == callback)
+		{
+			registeredCallbacks.erase(it);
+			mux.unlock();
+			return true;
+		}
+		++it;
+	}
+	mux.unlock();
 	return false;
 }
 

@@ -132,7 +132,6 @@ private:
 	time_t lastAdvertiseTime;
 
 	std::mutex mux;
-	std::mutex callbackMux;
 
 	Network* network;
 	Crypto* crypto;
