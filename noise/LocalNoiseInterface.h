@@ -107,6 +107,11 @@ public:
 	bool loadKeysFromFile() override;
 
 private:
+	//Advertises one of our encryption public keys
+	void internal_advertiseOurPublicKey(const Fingerprint& fingerprint);
+	//Sends a challenge to a server with a associated public key to prove the server has the private key
+	void internal_sendChallenge(const RakNet::RakNetGUID& system, const Fingerprint& fingerprint, bool broadcast = false);
+
 	//Handles a single packet in the queue
 	void handlePacket(void);
 	//Requests a publickey from a remote system

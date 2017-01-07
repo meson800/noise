@@ -23,6 +23,7 @@ namespace openssl
 
 LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0)
 {
+	std::lock_guard<std::mutex> lock(mux);
 	//we can init crypto at this point
 	crypto = new Crypto();
 
@@ -32,6 +33,7 @@ LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0)
 
 LocalNoiseInterface::~LocalNoiseInterface()
 {
+	std::lock_guard<std::mutex> lock(mux);
 	//free network and crypto
 	free(network);
 	free(crypto);
@@ -39,96 +41,77 @@ LocalNoiseInterface::~LocalNoiseInterface()
 
 void LocalNoiseInterface::startNetworking(int portNumber)
 {
-	mux.lock();
+	std::unique_lock<std::mutex> lock(mux);
 	//now init network
 	network = new Network(portNumber);
 	network->startNode();
-	mux.unlock();
 
+	lock.unlock();
 	//now loop until we need to stop
 	while (true)
 	{
-		mux.lock();
+		Helpers::sleep_ms(10);
+		lock.lock();
 		if (network->isRunning())
 		{
-			mux.unlock();
 			handlePacket();
 		}
 		else
 		{
-			mux.unlock();
 			return;
 		}
+		lock.unlock();
 	}
 }
 
 void LocalNoiseInterface::stopNetworking(void)
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	if (network && network->isRunning())
 		network->shutdownNode();
-	mux.unlock();
 }
 
 bool LocalNoiseInterface::isRunning(void)
 {
+	std::lock_guard<std::mutex> lock(mux);
 	bool result = false;
-	mux.lock();
 	if (network)
 		result = network->isRunning();
-	mux.unlock();
 	return result;
 }
 
 void LocalNoiseInterface::handlePacket(void)
 {
-	mux.lock();
 	if (network && network->isRunning())
 	{
 		try
 		{
 			RakNet::Packet* packet = network->handlePacket();
-			mux.unlock();
 			//see if it's time to advertise
 			time_t now = time(0);
 			if (now - lastAdvertiseTime > 10)
 			{
 				//request nodes from directory
-				mux.lock();
 				network->requestNodesFromDirectory();
-				mux.unlock();
 				//advertise our keys and request verification on other keys
-				mux.lock();
 				unsigned int upperBound = ourFingerprints.size();
-				mux.unlock();
 				for (unsigned int i = 0; i < upperBound; ++i)
 				{
-					mux.lock();
 					Fingerprint fingerprint = ourFingerprints[i];
-					mux.unlock();
-					advertiseOurPublicKey(fingerprint);
+					internal_advertiseOurPublicKey(fingerprint);
 				}
 				//now try to verify systems that we haven't verified yet
-				mux.lock();
 				upperBound = otherFingerprints.size();
-				mux.unlock();
 				for (unsigned int i = 0; i < upperBound; ++i)
 				{
-					mux.lock();
 					if (!verifiedSystems.count(otherFingerprints[i]))
 					{
 						Fingerprint fingerprint = otherFingerprints[i];
-						mux.unlock();
 						//sendChallenge(RakNet::UNASSIGNED_RAKNET_GUID, fingerprint, true);
 					}
-					else
-						mux.unlock();
 				}
 				lastAdvertiseTime = now;
 			}
-			if (packet == 0)
-				Helpers::sleep_ms(15);;
-			//Sleep if we're done with packets for the moment
 
 			if (packet)
 			{
@@ -157,12 +140,10 @@ void LocalNoiseInterface::handlePacket(void)
 						}
 					}
 					//and call the callbacks
-					mux.lock();
 					for (auto it = registeredCallbacks.begin(); it != registeredCallbacks.end(); ++it)
 					{
 						(*it)->NodeDisconnected(packet->guid.g);
 					}
-					mux.unlock();
 
 					break;
 
@@ -172,12 +153,10 @@ void LocalNoiseInterface::handlePacket(void)
 					//add to our list of nodes
 					nodes[packet->guid] = std::vector<Fingerprint>();
 					//call the callbacks
-					mux.lock();
 					for (auto it = registeredCallbacks.begin(); it != registeredCallbacks.end(); ++it)
 					{
 						(*it)->NodeConnected(packet->guid.g);
 					}
-					mux.unlock();
 					break;
 
 				case ID_OFFER_PUBKEY:
@@ -195,7 +174,7 @@ void LocalNoiseInterface::handlePacket(void)
 					}
 					//otherwise see if we need it confirmed
 					if (verifiedSystems.count(fingerprint) == 0)
-						sendChallenge(packet->guid, fingerprint);
+						internal_sendChallenge(packet->guid, fingerprint);
 					break;
 				}
 
@@ -207,14 +186,10 @@ void LocalNoiseInterface::handlePacket(void)
 					Fingerprint fingerprint = Fingerprint(bsIn);
 					Log::writeToLog(Log::INFO, "Recieved public key request for key ", fingerprint.toString());
 					//if we have it, let's send it
-					mux.lock();
 					if (ourEncryptionKeys.count(fingerprint))
 					{
-						mux.unlock();
 						sendPublickey(fingerprint, packet->guid);
 					}
-					else
-						mux.unlock();
 					break;
 				}
 
@@ -240,7 +215,7 @@ void LocalNoiseInterface::handlePacket(void)
 
 					//send a challenge--TEMPORARY
 					if (verifiedSystems.count(fingerprint) == 0)
-						sendChallenge(packet->guid, fingerprint);
+						internal_sendChallenge(packet->guid, fingerprint);
 					break;
 				}
 
@@ -278,7 +253,6 @@ void LocalNoiseInterface::handlePacket(void)
 						responseData.push_back(cur);
 
 					//let's see if we have a live challenge
-					mux.lock();
 					//This checks if we have this public key and we have a challenge live
 					if (otherEncryptionKeys.count(fingerprint) && otherEncryptionKeys[fingerprint] &&
 						liveChallenges.count(fingerprint))
@@ -310,7 +284,6 @@ void LocalNoiseInterface::handlePacket(void)
 					{
 						Log::writeToLog(Log::INFO, "Didn't request challenge for pubkey ", fingerprint.toString());
 					}
-					mux.unlock();
 					break;
 				}
 
@@ -341,7 +314,6 @@ void LocalNoiseInterface::handlePacket(void)
 					while (bsIn.Read(cur))
 						recievedEphemeralKeyData.push_back(cur);
 
-					mux.lock();
 					//verify the signature
 					if (crypto->verifySignature(otherEncryptionKeys[signerFingerprint], recievedEphemeralKeyData, recievedSignature))
 					{
@@ -350,7 +322,6 @@ void LocalNoiseInterface::handlePacket(void)
 					else
 					{
 						Log::writeToLog(Log::INFO, "Recieved invalid signature for ephemeral key, discarding");
-						mux.unlock();
 						break;
 					}
 					openssl::EVP_PKEY* recievedKey = CryptoHelpers::bytesToEcPublicKey(recievedEphemeralKeyData);
@@ -371,14 +342,11 @@ void LocalNoiseInterface::handlePacket(void)
 
 						//find the fingerprint that we want for the encrypted data we want to send
 						Fingerprint fingerprint = outgoingData[packet->guid].otherKey;
-						mux.unlock();
 						if (fingerprint.data.size() > 0)
 						{
 							sendEncryptedData(fingerprint);
-							mux.lock();
 							//Delete the outgoing data, we did it
 							outgoingData.erase(packet->guid);
-							mux.unlock();
 						}
 
 					}
@@ -394,10 +362,8 @@ void LocalNoiseInterface::handlePacket(void)
 						outgoingData[packet->guid].ourKey = requestedFingerprint;
 						outgoingData[packet->guid].otherKey = signerFingerprint;
 						outgoingData[packet->guid].ourEphemeralKey = newEphemeralKey;
-						mux.unlock();
 						//we have to send before generating shared secret, as deriving destroys the keys
 						sendEphemeralPublicKey(packet->guid);
-						mux.lock();
 						//generate shared secret 
 						SymmetricKey sharedKey;
 						crypto->deriveSharedKey(outgoingData[packet->guid].ourEphemeralKey, recievedKey, sharedKey);
@@ -407,7 +373,6 @@ void LocalNoiseInterface::handlePacket(void)
 						outgoingData[packet->guid].ourEphemeralKey = 0;
 						outgoingData[packet->guid].otherEphemeralKey = 0;
 						//and send ours along
-						mux.unlock();
 
 					}
 					break;
@@ -426,7 +391,6 @@ void LocalNoiseInterface::handlePacket(void)
 						cipherCiphertext.push_back(cur);
 
 					//decrypt it!!!
-					mux.lock();
 					std::vector<unsigned char> ciphertext = crypto->decryptSymmetric(outgoingData[packet->guid].sharedKey, cipherCiphertext);
 					//expand into envelope
 					Envelope envelope = Envelope(ciphertext);
@@ -445,7 +409,6 @@ void LocalNoiseInterface::handlePacket(void)
 					}
 					//remove shared key, we're done with it
 					outgoingData.erase(packet->guid);
-					mux.unlock();
 					//Append extra NULL so it's a string
 					plaintext.push_back(0);
 					Log::writeToLog(Log::INFO, "Recieved plaintext: ", (char*)plaintext.data());
@@ -463,11 +426,8 @@ void LocalNoiseInterface::handlePacket(void)
 		{
 			Log::writeToLog(Log::ERR, e.what());
 			openssl::ERR_print_errors_fp(stderr);
-			mux.unlock();
 		}
 	}
-	else
-		mux.unlock();
 }
 
 void LocalNoiseInterface::requestPublickey(const Fingerprint & fingerprint, RakNet::RakNetGUID system)
@@ -476,14 +436,11 @@ void LocalNoiseInterface::requestPublickey(const Fingerprint & fingerprint, RakN
 	RakNet::BitStream bs;
 	bs.Write((RakNet::MessageID)ID_REQUEST_PUBKEY);
 	fingerprint.toBitStream(bs);
-	mux.lock();
 	network->sendBitStream(&bs, system, false);
-	mux.unlock();
 }
 
 void LocalNoiseInterface::sendPublickey(const Fingerprint & fingerprint, RakNet::RakNetGUID system)
 {
-	mux.lock();
 	if (ourEncryptionKeys.count(fingerprint))
 	{
 		std::vector<unsigned char> pubkey = CryptoHelpers::oslPublicKeyToBytes(ourEncryptionKeys[fingerprint]);
@@ -493,18 +450,12 @@ void LocalNoiseInterface::sendPublickey(const Fingerprint & fingerprint, RakNet:
 		for (unsigned int i = 0; i < pubkey.size(); ++i)
 			bs.Write(pubkey[i]);
 		network->sendBitStream(&bs, system, false);
-		mux.unlock();
-	}
-	else
-	{
-		mux.unlock();
 	}
 }
 
 void LocalNoiseInterface::verifyChallenge(const Fingerprint & fingerprint, const std::vector<unsigned char>& challenge, RakNet::RakNetGUID system)
 {
 	//Check that we have the key
-	mux.lock();
 	if (ourEncryptionKeys.count(fingerprint))
 	{
 		std::vector<unsigned char> response = crypto->signMessage(ourEncryptionKeys[fingerprint], challenge);
@@ -515,19 +466,14 @@ void LocalNoiseInterface::verifyChallenge(const Fingerprint & fingerprint, const
 		for (unsigned int i = 0; i < response.size(); ++i)
 			bs.Write(response[i]);
 		network->sendBitStream(&bs, system, false);
-		mux.unlock();
 	}
-	else
-		mux.unlock();
 }
 
 void LocalNoiseInterface::sendEphemeralPublicKey(const Fingerprint& fingerprint)
 {
 	Log::writeToLog(Log::INFO, "Sending ephemeral key to system owning public key ", fingerprint.toString());
 
-	mux.lock();
 	RakNet::RakNetGUID system = verifiedSystems[fingerprint];
-	mux.unlock();
 
 	sendEphemeralPublicKey(system);
 	
@@ -539,7 +485,6 @@ void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system)
 	RakNet::BitStream bs;
 	bs.Write((RakNet::MessageID)ID_SEND_EPHEMERAL_PUBKEY);
 	//Write our ephemeral key for this transfer
-	mux.lock();
 	std::vector<unsigned char> ourEphemeralKey = CryptoHelpers::ecPublicKeyToBytes(outgoingData[system].ourEphemeralKey);
 	std::vector<unsigned char> ourSignature = crypto->signMessage(ourEncryptionKeys[outgoingData[system].ourKey], ourEphemeralKey);
 
@@ -559,8 +504,6 @@ void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system)
 		bs.Write(ourEphemeralKey[i]);
 	//now send it out onto the network
 	network->sendBitStream(&bs, system, false);
-	mux.unlock();
-
 }
 
 void LocalNoiseInterface::sendEncryptedData(const Fingerprint & fingerprint)
@@ -570,7 +513,6 @@ void LocalNoiseInterface::sendEncryptedData(const Fingerprint & fingerprint)
 	bs.Write((RakNet::MessageID)ID_SEND_ENCRYPTED_DATA);
 	//see if we have a shared secret and a verified system
 	fingerprint.toBitStream(bs);
-	mux.lock();
 	if (verifiedSystems.count(fingerprint) && outgoingData[verifiedSystems[fingerprint]].sharedKey.key.size() > 0)
 	{
 		//First make an encrypted envelope
@@ -581,35 +523,39 @@ void LocalNoiseInterface::sendEncryptedData(const Fingerprint & fingerprint)
 		for (unsigned int i = 0; i < pfsResult.size(); ++i)
 			bs.Write(pfsResult[i]);
 		network->sendBitStream(&bs, verifiedSystems[fingerprint], false);
-		mux.unlock();
 
 	}
-	else
-		mux.unlock();
 }
 
 void LocalNoiseInterface::connectToNode(const std::string & address, int port)
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	if (network && network->isRunning())
 		network->connectToNode(address, port);
-	mux.unlock();
-
 }
 
 void LocalNoiseInterface::advertiseOurPublicKey(const Fingerprint& fingerprint)
+{
+	std::lock_guard<std::mutex> lock(mux);
+	internal_advertiseOurPublicKey(fingerprint);
+}
+
+void LocalNoiseInterface::internal_advertiseOurPublicKey(const Fingerprint& fingerprint)
 {
 	Log::writeToLog(Log::INFO, "Advertising public key ", fingerprint.toString());
 	RakNet::BitStream bs;
 	bs.Write((RakNet::MessageID)ID_OFFER_PUBKEY);
 	fingerprint.toBitStream(bs);
-	mux.lock();
 	network->sendBitStream(&bs, RakNet::UNASSIGNED_RAKNET_GUID, true);
-	mux.unlock();
 }
 
-
 void LocalNoiseInterface::sendChallenge(const RakNet::RakNetGUID& system, const Fingerprint & fingerprint, bool broadcast)
+{
+	std::lock_guard<std::mutex> lock(mux);
+	internal_sendChallenge(system, fingerprint, broadcast);
+}
+
+void LocalNoiseInterface::internal_sendChallenge(const RakNet::RakNetGUID& system, const Fingerprint & fingerprint, bool broadcast)
 {
 	//check that we don't have an active request out
 	if (liveChallenges.count(fingerprint) != 0)
@@ -634,22 +580,18 @@ void LocalNoiseInterface::sendChallenge(const RakNet::RakNetGUID& system, const 
 		bs.Write(randomChallenge[i]);
 	}
 	//Send the challenge along
-	mux.lock();
 	network->sendBitStream(&bs, system, broadcast);
-	mux.unlock();
 
 	//and set our challenge into live challenges
 	liveChallenges[fingerprint] = challenge;
-
 }
 
 void LocalNoiseInterface::sendData(const Fingerprint& ourFingerprint, const Fingerprint& otherFingerprint, const std::vector<unsigned char>& data)
 {
 	//Start off by even checking if we have that fingerprint avaliable and a verified system to send it to
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	if (!otherEncryptionKeys.count(otherFingerprint) && !verifiedSystems.count(otherFingerprint))
 	{
-		mux.unlock();
 		return;
 	}
 
@@ -666,29 +608,26 @@ void LocalNoiseInterface::sendData(const Fingerprint& ourFingerprint, const Fing
 	//save it
 	outgoingData[verifiedSystems[otherFingerprint]].ourEphemeralKey = newEpehemeralKey;
 	//and send it along
-	mux.unlock();
 	sendEphemeralPublicKey(otherFingerprint);
 }
 
 Fingerprint LocalNoiseInterface::getFingerprint(const RakNet::RakNetGUID& system)
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	for (auto it = verifiedSystems.begin(); it != verifiedSystems.end(); ++it)
 	{
 		if (it->second == system)
 		{
 			Fingerprint fingerprint = it->first;
-			mux.unlock();
 			return fingerprint;
 		}
 	}
-	mux.unlock();
 	return Fingerprint();
 }
 
 Fingerprint LocalNoiseInterface::generateNewEncryptionKey()
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	if (crypto)
 	{
 		openssl::EVP_PKEY* newKey = 0;
@@ -698,62 +637,55 @@ Fingerprint LocalNoiseInterface::generateNewEncryptionKey()
 		//insert into our key map
 		ourFingerprints.push_back(fingerprint);
 		ourEncryptionKeys[fingerprint] = newKey;
-		mux.unlock();
 		return fingerprint;
 	}
 	//if we get to this point, crypto wasn't enabled
-	mux.unlock();
 	throw InterfaceException("Crypto not initalized");
 }
 
 Fingerprint LocalNoiseInterface::getOurEncryptionKeyByIndex(unsigned int index)
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	if (index >= ourEncryptionKeys.size())
 	{
-		mux.unlock();
 		throw std::runtime_error("Encryption key index out of range");
 	}
 	Fingerprint fingerprint = ourFingerprints[index];
-	mux.unlock();
 	return fingerprint;
 }
 
 unsigned int LocalNoiseInterface::numOtherEncryptionKeys()
 {
+	std::lock_guard<std::mutex> lock(mux);
 	unsigned int result = 0;
-	mux.lock();
 	result = otherEncryptionKeys.size();
-	mux.unlock();
 	return result;
 }
 
 Fingerprint LocalNoiseInterface::getOtherEncryptionKeyByIndex(unsigned int index)
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	if (index >= otherEncryptionKeys.size())
 	{
-		mux.unlock();
 		throw std::runtime_error("Other encryption key index out of range");
 	}
 	Fingerprint fingerprint = otherFingerprints[index];
-	mux.unlock();
 	return fingerprint;
 }
 
 bool LocalNoiseInterface::hasVerifiedNode(const Fingerprint & fingerprint)
 {
+	std::lock_guard<std::mutex> lock(mux);
 	bool result = false;
-	mux.lock();
 	if (verifiedSystems.count(fingerprint))
 		result = true;
-	mux.unlock();
 	
 	return result;
 }
 
 Message LocalNoiseInterface::getEncryptedMessage()
 {
+	std::lock_guard<std::mutex> lock(mux);
 	if (incomingMessages.size() != 0)
 	{
 		Message message = incomingMessages[0];
@@ -765,6 +697,7 @@ Message LocalNoiseInterface::getEncryptedMessage()
 
 bool LocalNoiseInterface::setUserData(const Fingerprint & fingerprint, const std::vector<unsigned char>& data)
 {
+	std::lock_guard<std::mutex> lock(mux);
 	if (!ourEncryptionKeys.count(fingerprint) && !otherEncryptionKeys.count(fingerprint))
 	{
 		//we don't have an fingerprint for that key, don't attach data
@@ -776,6 +709,7 @@ bool LocalNoiseInterface::setUserData(const Fingerprint & fingerprint, const std
 
 std::vector<unsigned char> LocalNoiseInterface::getUserData(const Fingerprint & fingerprint)
 {
+	std::lock_guard<std::mutex> lock(mux);
 	if (userdata.count(fingerprint))
 		return userdata[fingerprint];
 	return fingerprint.data;
@@ -783,41 +717,36 @@ std::vector<unsigned char> LocalNoiseInterface::getUserData(const Fingerprint & 
 
 bool LocalNoiseInterface::addCallbackClass(NoiseAPI::NoiseCallbacks * callback)
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	if (std::find(registeredCallbacks.begin(), registeredCallbacks.end(), callback) == registeredCallbacks.end())
 	{
 		registeredCallbacks.push_back(callback);
-		mux.unlock();
 		return true;
 	}
-	mux.unlock();
 	return false;
 }
 
 bool LocalNoiseInterface::removeCallbackClass(NoiseAPI::NoiseCallbacks * callback)
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	auto it = registeredCallbacks.begin();
 	while (it != registeredCallbacks.end())
 	{
 		if (*it == callback)
 		{
 			registeredCallbacks.erase(it);
-			mux.unlock();
 			return true;
 		}
 		++it;
 	}
-	mux.unlock();
 	return false;
 }
 
 unsigned int LocalNoiseInterface::numOurEncryptionKeys()
 {
+	std::lock_guard<std::mutex> lock(mux);
 	unsigned int result = 0;
-	mux.lock();
 	result = ourEncryptionKeys.size();
-	mux.unlock();
 	return result;
 }
 
@@ -831,7 +760,7 @@ unsigned int LocalNoiseInterface::numOurEncryptionKeys()
 //then the rest of the public keys are listed, with a unsigned int for size
 bool LocalNoiseInterface::writeKeysToFile(std::vector<unsigned char> password)
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	//Generate a random salt
 	unsigned char* tempSalt = new unsigned char[8];
 	if (1 != openssl::RAND_bytes(tempSalt, 8))
@@ -858,13 +787,12 @@ bool LocalNoiseInterface::writeKeysToFile(std::vector<unsigned char> password)
 		file << result[i];
 	file.close();
 
-	mux.unlock();
 	return true;
 }
 
 bool LocalNoiseInterface::writeKeysToFile()
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	//Simply write keys out without encryption :(
 	std::ofstream file;
         file.open("noise_keys.db",  std::ios_base::trunc);
@@ -872,19 +800,17 @@ bool LocalNoiseInterface::writeKeysToFile()
 	for (unsigned int i = 0; i < seralizedKeys.size(); ++i)
 		file << seralizedKeys[i];
 	file.close();
-	mux.unlock();
 	return false;
 }
 
 bool LocalNoiseInterface::loadKeysFromFile(std::vector<unsigned char> password)
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	//Open the file, and get the salt
 	std::ifstream file;
         file.open("noise_keys.db", std::ios_base::binary);
 	if (!file.is_open())
 	{
-		mux.unlock();
 		return true;
 	}
 
@@ -919,30 +845,25 @@ bool LocalNoiseInterface::loadKeysFromFile(std::vector<unsigned char> password)
 		std::vector<unsigned char> plaintext = crypto->decryptSymmetric(key, bytes);
 		//Turn it into keys
 		bool result = bytesToKeys(plaintext);
-		mux.unlock();
 		return result;
 	}
 	catch (const OpensslException& e)
 	{
 		Log::writeToLog(Log::ERR, e.what());
 		openssl::ERR_print_errors_fp(stderr);
-		mux.unlock();
 		return false;
 	}
-	mux.unlock();
 	return false;
-
 }
 
 bool LocalNoiseInterface::loadKeysFromFile()
 {
-	mux.lock();
+	std::lock_guard<std::mutex> lock(mux);
 	//Simply read keys in without encryption :(
 	std::ifstream file;
         file.open("noise_keys.db", std::ios_base::binary);
 	if (!file.is_open())
 	{
-		mux.unlock();
 		return true;
 	}
 	std::vector<unsigned char> bytes;
@@ -954,7 +875,6 @@ bool LocalNoiseInterface::loadKeysFromFile()
 	}
 	file.close();
 	bool result = bytesToKeys(bytes);
-	mux.unlock();
 	return result;
 }
 

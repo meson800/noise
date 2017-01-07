@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vector>
+#include <map>
+#include <mutex>
 
 #include "Envelope.h"
 #include "SymmetricKey.h"
@@ -42,10 +44,13 @@ public:
 	//Salt should be 8 bytes long, and randomly generated
 	SymmetricKey deriveKeyFromPassword(const std::vector<unsigned char>& salt, const std::vector<unsigned char>& password);
 
+	static std::map<int, std::mutex> cryptoMuxes;
+
 private:
 	openssl::EVP_PKEY_CTX* keyContext;
 
 	openssl::EVP_PKEY_CTX* ephemeralParamContext;
 	openssl::EVP_PKEY_CTX* ephemeralKeyContext;
 	openssl::EVP_PKEY* ephemeralKeyParams;
+
 };

@@ -1,3 +1,5 @@
+#include <thread>
+
 #include "Crypto.h"
 #include "Exceptions.h"
 #include "Log.h"
@@ -15,6 +17,35 @@ namespace openssl {
 
 }
 
+std::map<int, std::mutex> Crypto::cryptoMuxes;
+
+static void locking_function(int mode, int n, const char *file, int line)
+{
+	if (mode & CRYPTO_LOCK)
+	{
+		std::cout << "Locking crypto mutex " << n << " with filename " << file << " line:" << line << std::endl;
+		Crypto::cryptoMuxes[n].lock();
+	} else {
+		if (Crypto::cryptoMuxes.count(n))
+		{
+			std::cout << "Unlocking crypto mutex " << n << " with filename " << file << " line:" << line << std::endl;
+			Crypto::cryptoMuxes[n].unlock();
+		}
+	}
+}
+
+static unsigned long simple_id_function(void)
+{
+	std::hash<std::thread::id> hasher;
+	return hasher(std::this_thread::get_id());
+}
+
+static void id_function(openssl::CRYPTO_THREADID * id)
+{
+	std::hash<std::thread::id> hasher;
+	openssl::CRYPTO_THREADID_set_numeric, hasher(std::this_thread::get_id());
+}
+
 Crypto::Crypto()
 {
 	Log::writeToLog(Log::INFO, "Initalizing crypto...");
@@ -22,6 +53,12 @@ Crypto::Crypto()
 	openssl::ERR_load_crypto_strings();
 	openssl::OpenSSL_add_all_algorithms();
 	openssl::OPENSSL_config(NULL);
+	//init threading code
+	/*
+	openssl::CRYPTO_THREADID_set_callback(id_function);
+	openssl::CRYPTO_set_id_callback(simple_id_function);
+	openssl::CRYPTO_set_locking_callback(locking_function);
+	*/
 	//seed random number generator
 	openssl::RAND_poll();
 
@@ -57,6 +94,11 @@ Crypto::~Crypto()
 	openssl::EVP_PKEY_CTX_free(ephemeralParamContext);
 	openssl::EVP_PKEY_CTX_free(ephemeralParamContext);
 	openssl::EVP_PKEY_free(ephemeralKeyParams);
+
+	//free crypto locks
+	openssl::CRYPTO_set_id_callback(nullptr);
+	openssl::CRYPTO_set_id_callback(nullptr);
+	openssl::CRYPTO_set_locking_callback(nullptr);
 }
 
 void Crypto::generateKeypair(openssl::EVP_PKEY ** key)
