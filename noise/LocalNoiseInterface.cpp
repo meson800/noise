@@ -127,7 +127,7 @@ void LocalNoiseInterface::handlePacket(void)
 					//and check our list of verified systems
 					{
 						auto verified_it = verifiedSystems.begin();
-						while (verified_it != verifiedSystems.begin())
+						while (verified_it != verifiedSystems.end())
 						{
 							if (verified_it->second == packet->guid)
 							{
