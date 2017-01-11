@@ -3,6 +3,8 @@
 #include "Log.h"
 #include <stdlib.h>
 
+#include "Crypto.h"
+
 namespace openssl {
 #include <openssl/evp.h>
 #include <openssl/ec.h>
@@ -12,6 +14,8 @@ namespace openssl {
 
 std::vector<unsigned char> CryptoHelpers::oslPublicKeyToBytes(openssl::EVP_PKEY * key)
 {
+	std::lock_guard<std::mutex> lock(Crypto::cryptoLock);
+
 	Log::writeToLog(Log::L_DEBUG, "Converting public key to bytes");
 	openssl::RSA* rsaKey = openssl::EVP_PKEY_get1_RSA(key);
 	if (!rsaKey)
@@ -39,6 +43,8 @@ std::vector<unsigned char> CryptoHelpers::oslPublicKeyToBytes(openssl::EVP_PKEY 
 
 openssl::EVP_PKEY * CryptoHelpers::bytesToOslPublicKey(const std::vector<unsigned char>& bytes)
 {
+	std::lock_guard<std::mutex> lock(Crypto::cryptoLock);
+
 	Log::writeToLog(Log::L_DEBUG, "Converting bytes to a public key");
 
 	const unsigned char* dataStart = bytes.data();
@@ -55,6 +61,8 @@ openssl::EVP_PKEY * CryptoHelpers::bytesToOslPublicKey(const std::vector<unsigne
 
 std::vector<unsigned char> CryptoHelpers::oslPrivateKeyToBytes(openssl::EVP_PKEY * key)
 {
+	std::lock_guard<std::mutex> lock(Crypto::cryptoLock);
+
 	Log::writeToLog(Log::L_DEBUG, "Converting private key to bytes");
 	openssl::RSA* rsaKey = openssl::EVP_PKEY_get1_RSA(key);
 	if (!rsaKey)
@@ -83,6 +91,8 @@ std::vector<unsigned char> CryptoHelpers::oslPrivateKeyToBytes(openssl::EVP_PKEY
 openssl::EVP_PKEY* CryptoHelpers::bytesToOslKeypair(const std::vector<unsigned char>& privateBytes,
 	const std::vector<unsigned char>& publicBytes)
 {
+	std::lock_guard<std::mutex> lock(Crypto::cryptoLock);
+
 	Log::writeToLog(Log::L_DEBUG, "Converting bytes to a public key");
 
 	const unsigned char* dataStart = privateBytes.data();
@@ -104,6 +114,8 @@ openssl::EVP_PKEY* CryptoHelpers::bytesToOslKeypair(const std::vector<unsigned c
 
 std::vector<unsigned char> CryptoHelpers::ecPublicKeyToBytes(openssl::EVP_PKEY * key)
 {
+	std::lock_guard<std::mutex> lock(Crypto::cryptoLock);
+
 	Log::writeToLog(Log::L_DEBUG, "Converting ephemeral key to bytes");
 	openssl::EC_KEY* ecKey = openssl::EVP_PKEY_get1_EC_KEY(key);
 	if (ecKey == 0)
@@ -130,6 +142,8 @@ std::vector<unsigned char> CryptoHelpers::ecPublicKeyToBytes(openssl::EVP_PKEY *
 
 openssl::EVP_PKEY * CryptoHelpers::bytesToEcPublicKey(const std::vector<unsigned char>& bytes)
 {
+	std::lock_guard<std::mutex> lock(Crypto::cryptoLock);
+
 	Log::writeToLog(Log::L_DEBUG, "Converting bytes to a EC key");
 
 	//get group from named curve

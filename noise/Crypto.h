@@ -44,7 +44,11 @@ public:
 	//Salt should be 8 bytes long, and randomly generated
 	SymmetricKey deriveKeyFromPassword(const std::vector<unsigned char>& salt, const std::vector<unsigned char>& password);
 
+	//Takes input data and returns the SHA1 hash of it
+	static std::vector<unsigned char> sha1(const std::vector<unsigned char>& data);
+
 	static std::map<int, std::mutex> cryptoMuxes;
+	static std::mutex cryptoLock;
 
 private:
 	openssl::EVP_PKEY_CTX* keyContext;

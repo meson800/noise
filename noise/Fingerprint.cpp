@@ -5,8 +5,9 @@
 #include <BitStream.h>
 
 #include "CryptoHelpers.h"
-namespace openssl
-{
+#include "Crypto.h"
+
+namespace openssl {
 #include <openssl/sha.h>
 }
 
@@ -19,12 +20,7 @@ Fingerprint::Fingerprint(openssl::EVP_PKEY * key)
 	//Get public key of key
 	std::vector<unsigned char> bytes = CryptoHelpers::oslPublicKeyToBytes(key);
 	
-	unsigned char * tempArray = new unsigned char[SHA_DIGEST_LENGTH];
-	openssl::SHA1(bytes.data(), bytes.size(), tempArray);
-
-	data = std::vector<unsigned char>(tempArray, tempArray + SHA_DIGEST_LENGTH);
-
-	delete[](tempArray);
+	data = Crypto::sha1(bytes);
 }
 
 Fingerprint::Fingerprint(RakNet::BitStream & bs)
@@ -45,12 +41,7 @@ Fingerprint::Fingerprint(std::vector<unsigned char> _data, bool isArbitraryData)
 	if (isArbitraryData)
 	{
 		data.clear();
-		unsigned char * tempArray = new unsigned char[SHA_DIGEST_LENGTH];
-		openssl::SHA1(_data.data(), _data.size(), tempArray);
-
-		data = std::vector<unsigned char>(tempArray, tempArray + SHA_DIGEST_LENGTH);
-
-		delete[](tempArray);
+		data = Crypto::sha1(_data);
 	}
 	if (data.size() != SHA_DIGEST_LENGTH)
 		throw std::runtime_error("Fingerprint data is not the right size");

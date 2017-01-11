@@ -18,6 +18,7 @@ namespace openssl {
 }
 
 std::map<int, std::mutex> Crypto::cryptoMuxes;
+std::mutex Crypto::cryptoLock;
 
 static void locking_function(int mode, int n, const char *file, int line)
 {
@@ -48,6 +49,8 @@ static void id_function(openssl::CRYPTO_THREADID * id)
 
 Crypto::Crypto()
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	Log::writeToLog(Log::INFO, "Initalizing crypto...");
 	//init openssl
 	openssl::ERR_load_crypto_strings();
@@ -89,6 +92,8 @@ Crypto::Crypto()
 
 Crypto::~Crypto()
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	//free contexts
 	openssl::EVP_PKEY_CTX_free(keyContext);
 	openssl::EVP_PKEY_CTX_free(ephemeralParamContext);
@@ -103,6 +108,8 @@ Crypto::~Crypto()
 
 void Crypto::generateKeypair(openssl::EVP_PKEY ** key)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	Log::writeToLog(Log::INFO, "Generating RSA keypair");
 	if (!keyContext)
 		throw KeyGenerationException("Can't generate keypair, no key context");
@@ -112,6 +119,8 @@ void Crypto::generateKeypair(openssl::EVP_PKEY ** key)
 
 void Crypto::generateEphemeralKeypair(openssl::EVP_PKEY ** key)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	*key = openssl::EVP_PKEY_new();
 	Log::writeToLog(Log::INFO, "Generating ephemeral EC keypair");
 	if (!ephemeralKeyContext)
@@ -122,6 +131,8 @@ void Crypto::generateEphemeralKeypair(openssl::EVP_PKEY ** key)
 
 std::vector<unsigned char> Crypto::signMessage(openssl::EVP_PKEY * key, const std::vector<unsigned char>& message)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	openssl::EVP_MD_CTX* digestContext = 0;
 	//create and init the context
 	if (!(digestContext = openssl::EVP_MD_CTX_create()))
@@ -151,6 +162,8 @@ std::vector<unsigned char> Crypto::signMessage(openssl::EVP_PKEY * key, const st
 
 bool Crypto::verifySignature(openssl::EVP_PKEY * key, const std::vector<unsigned char>& message, const std::vector<unsigned char>& signature)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	openssl::EVP_MD_CTX* digestContext = 0;
 	//create and init the context
 	if (!(digestContext = openssl::EVP_MD_CTX_create()))
@@ -172,6 +185,8 @@ bool Crypto::verifySignature(openssl::EVP_PKEY * key, const std::vector<unsigned
 void Crypto::deriveSharedKey(openssl::EVP_PKEY * key, openssl::EVP_PKEY * otherKey, 
 	SymmetricKey& sharedKey)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	openssl::EVP_PKEY_CTX* derivationContext = 0;
 	//start derivation context
 	if (NULL == (derivationContext = openssl::EVP_PKEY_CTX_new(key,NULL)))
@@ -209,6 +224,8 @@ void Crypto::deriveSharedKey(openssl::EVP_PKEY * key, openssl::EVP_PKEY * otherK
 
 std::vector<unsigned char> Crypto::encryptSymmetric(const SymmetricKey& key, const std::vector<unsigned char>& plaintext)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	Log::writeToLog(Log::L_DEBUG, "Encrypting plaintext of length ", plaintext.size(), " with key ", key.toString());;
 	openssl::EVP_CIPHER_CTX* cipherContext = 0;
 	//init context
@@ -242,6 +259,8 @@ std::vector<unsigned char> Crypto::encryptSymmetric(const SymmetricKey& key, con
 
 std::vector<unsigned char> Crypto::decryptSymmetric(const SymmetricKey& key, const std::vector<unsigned char>& ciphertext)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	Log::writeToLog(Log::L_DEBUG, "Decrypting ciphertext of length ", ciphertext.size(), " with key ", key.toString());
 	openssl::EVP_CIPHER_CTX* cipherContext = 0;
 	//init context
@@ -276,6 +295,8 @@ std::vector<unsigned char> Crypto::decryptSymmetric(const SymmetricKey& key, con
 
 Envelope Crypto::encryptAsymmetric(openssl::EVP_PKEY ** publicKey, std::vector<unsigned char> plaintext)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	Envelope envelope;
 
 	//init context
@@ -322,6 +343,8 @@ Envelope Crypto::encryptAsymmetric(openssl::EVP_PKEY ** publicKey, std::vector<u
 
 std::vector<unsigned char> Crypto::decryptAsymmetric(openssl::EVP_PKEY * key, const Envelope & envelope)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	//init context
 	openssl::EVP_CIPHER_CTX* cipherContext;
 	if (NULL == (cipherContext = openssl::EVP_CIPHER_CTX_new()))
@@ -359,6 +382,8 @@ std::vector<unsigned char> Crypto::decryptAsymmetric(openssl::EVP_PKEY * key, co
 
 SymmetricKey Crypto::deriveKeyFromPassword(const std::vector<unsigned char>& salt, const std::vector<unsigned char>& password)
 {
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
 	SymmetricKey resultKey;
 
 	unsigned char* tempKey = new unsigned char[256];
@@ -376,4 +401,19 @@ SymmetricKey Crypto::deriveKeyFromPassword(const std::vector<unsigned char>& sal
 	delete[](iv);
 
 	return resultKey;
+}
+
+std::vector<unsigned char> Crypto::sha1(const std::vector<unsigned char>& data)
+{
+	std::lock_guard<std::mutex> lock(cryptoLock);
+
+	std::vector<unsigned char> result;
+
+	unsigned char * tempArray = new unsigned char[SHA_DIGEST_LENGTH];
+	openssl::SHA1(data.data(), data.size(), tempArray);
+
+	result = std::vector<unsigned char>(tempArray, tempArray + SHA_DIGEST_LENGTH);
+
+	delete[] tempArray;
+	return result;
 }
