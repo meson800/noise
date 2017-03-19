@@ -3,6 +3,7 @@
 #include "Network.h"
 #include "Crypto.h"
 #include "CryptoHelpers.h"
+#include "RandomHelpers.h"
 #include "Helpers.h"
 #include "Exceptions.h"
 #include "NoiseCallbacks.h"
@@ -21,7 +22,7 @@ namespace openssl
 #include <openssl/err.h>
 }
 
-LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0), e2(rd())
+LocalNoiseInterface::LocalNoiseInterface() : network(0), crypto(0)
 {
 	std::lock_guard<std::mutex> lock(mux);
 	//we can init crypto at this point
@@ -608,7 +609,7 @@ void LocalNoiseInterface::sendData(const Fingerprint& ourFingerprint, const Fing
 	}
 
 	//generate a GUID for this message
-	uint64_t guid = guid_generator(e2);
+	uint64_t guid = RandomHelpers::GenerateGUID();
 
 
 	(outgoingData[verifiedSystems[otherFingerprint]])[guid].ourKey = ourFingerprint;

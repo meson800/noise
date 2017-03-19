@@ -154,9 +154,6 @@ private:
 	std::map<Fingerprint, std::vector<unsigned char>> liveChallenges;
 
 	//Variables for random number generation
-	std::random_device rd;
-	std::mt19937_64 e2;
-	std::uniform_int_distribution<uint64_t> guid_generator;
 	std::map<RakNet::RakNetGUID,std::map<uint64_t,DataRequest>> outgoingData;
 
 	std::map<RakNet::RakNetGUID, std::vector<Fingerprint>> nodes;
