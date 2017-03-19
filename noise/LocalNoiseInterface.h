@@ -11,6 +11,7 @@ class Crypto;
 
 #include <mutex>
 #include <map>
+#include <random>
 
 namespace openssl
 {
@@ -122,10 +123,10 @@ private:
 	void verifyChallenge(const Fingerprint& fingerprint, const std::vector<unsigned char>& challenge, RakNet::RakNetGUID system);
 
 	//Sends ephemeral public key to other system to derive PFS key so we can send our data along
-	void sendEphemeralPublicKey(const Fingerprint& fingerprint);
-	void sendEphemeralPublicKey(RakNet::RakNetGUID system);
+	void sendEphemeralPublicKey(const Fingerprint& fingerprint, uint64_t message_id);
+	void sendEphemeralPublicKey(RakNet::RakNetGUID system, uint64_t message_id);
 	//Sends encrypted data using double encryption
-	void sendEncryptedData(const Fingerprint& fingerprint);
+	void sendEncryptedData(const Fingerprint& fingerprint, uint64_t message_id);
 
 	//Extracts all keys to bytes
 	std::vector<unsigned char> keysToBytes();
@@ -152,7 +153,8 @@ private:
 	std::map<Fingerprint, RakNet::RakNetGUID> verifiedSystems;
 	std::map<Fingerprint, std::vector<unsigned char>> liveChallenges;
 
-	std::map<RakNet::RakNetGUID,DataRequest> outgoingData;
+	//Variables for random number generation
+	std::map<RakNet::RakNetGUID,std::map<uint64_t,DataRequest>> outgoingData;
 
 	std::map<RakNet::RakNetGUID, std::vector<Fingerprint>> nodes;
 

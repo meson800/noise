@@ -3,6 +3,7 @@
 #include "Network.h"
 #include "Crypto.h"
 #include "CryptoHelpers.h"
+#include "RandomHelpers.h"
 #include "Helpers.h"
 #include "Exceptions.h"
 #include "NoiseCallbacks.h"
@@ -293,6 +294,10 @@ void LocalNoiseInterface::handlePacket(void)
 					RakNet::BitStream bsIn(packet->data, packet->length, false);
 					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
 
+					//Read the message GUID
+					uint64_t message_guid;
+					bsIn.Read(message_guid);
+
 					//recieve the signed fingerprint (sending fingerprint), requested fingerprint
 					//, then size of signature, then signature, then ephemeral key
 					Fingerprint signerFingerprint = Fingerprint(bsIn);
@@ -325,28 +330,28 @@ void LocalNoiseInterface::handlePacket(void)
 						break;
 					}
 					openssl::EVP_PKEY* recievedKey = CryptoHelpers::bytesToEcPublicKey(recievedEphemeralKeyData);
-					outgoingData[packet->guid].otherEphemeralKey = recievedKey;
+					(outgoingData[packet->guid])[message_guid].otherEphemeralKey = recievedKey;
 					//now that we've read a key, let's see if we have sent ours yet
 
-					if (outgoingData[packet->guid].ourEphemeralKey != 0)
+					if ((outgoingData[packet->guid])[message_guid].ourEphemeralKey != 0)
 					{
-						Log::writeToLog(Log::INFO, "Deriving shared secret with system ", packet->guid.ToString());
+						Log::writeToLog(Log::INFO, "Deriving shared secret with system ", packet->guid.ToString(), " for message guid ", message_guid);
 						//yes, we've sent our key to them. Let's derive a shared secret and send our packet along :)
 						SymmetricKey sharedKey;
-						crypto->deriveSharedKey(outgoingData[packet->guid].ourEphemeralKey, recievedKey, sharedKey);
-						outgoingData[packet->guid].sharedKey = sharedKey;
+						crypto->deriveSharedKey((outgoingData[packet->guid])[message_guid].ourEphemeralKey, recievedKey, sharedKey);
+						(outgoingData[packet->guid])[message_guid].sharedKey = sharedKey;
 						//erase ephemeral keys, we must reset for the next packet
 						//Note that the deriveSharedKey deletes the keys, so just zero this
-						outgoingData[packet->guid].ourEphemeralKey = 0;
-						outgoingData[packet->guid].otherEphemeralKey = 0;
+						(outgoingData[packet->guid])[message_guid].ourEphemeralKey = 0;
+						(outgoingData[packet->guid])[message_guid].otherEphemeralKey = 0;
 
 						//find the fingerprint that we want for the encrypted data we want to send
-						Fingerprint fingerprint = outgoingData[packet->guid].otherKey;
+						Fingerprint fingerprint = (outgoingData[packet->guid])[message_guid].otherKey;
 						if (fingerprint.data.size() > 0)
 						{
-							sendEncryptedData(fingerprint);
+							sendEncryptedData(fingerprint, message_guid);
 							//Delete the outgoing data, we did it
-							outgoingData.erase(packet->guid);
+							(outgoingData[packet->guid]).erase(message_guid);
 						}
 
 					}
@@ -359,19 +364,19 @@ void LocalNoiseInterface::handlePacket(void)
 						openssl::EVP_PKEY* newEphemeralKey = 0;
 						crypto->generateEphemeralKeypair(&newEphemeralKey);
 						//save it
-						outgoingData[packet->guid].ourKey = requestedFingerprint;
-						outgoingData[packet->guid].otherKey = signerFingerprint;
-						outgoingData[packet->guid].ourEphemeralKey = newEphemeralKey;
+						(outgoingData[packet->guid])[message_guid].ourKey = requestedFingerprint;
+						(outgoingData[packet->guid])[message_guid].otherKey = signerFingerprint;
+						(outgoingData[packet->guid])[message_guid].ourEphemeralKey = newEphemeralKey;
 						//we have to send before generating shared secret, as deriving destroys the keys
-						sendEphemeralPublicKey(packet->guid);
+						sendEphemeralPublicKey(packet->guid, message_guid);
 						//generate shared secret 
 						SymmetricKey sharedKey;
-						crypto->deriveSharedKey(outgoingData[packet->guid].ourEphemeralKey, recievedKey, sharedKey);
-						outgoingData[packet->guid].sharedKey = sharedKey;
+						crypto->deriveSharedKey((outgoingData[packet->guid])[message_guid].ourEphemeralKey, recievedKey, sharedKey);
+						(outgoingData[packet->guid])[message_guid].sharedKey = sharedKey;
 
 						//clear ephemeral keys
-						outgoingData[packet->guid].ourEphemeralKey = 0;
-						outgoingData[packet->guid].otherEphemeralKey = 0;
+						(outgoingData[packet->guid])[message_guid].ourEphemeralKey = 0;
+						(outgoingData[packet->guid])[message_guid].otherEphemeralKey = 0;
 						//and send ours along
 
 					}
@@ -383,6 +388,11 @@ void LocalNoiseInterface::handlePacket(void)
 					Log::writeToLog(Log::INFO, "Recieved encrypted data from system ", packet->guid.ToString());
 					RakNet::BitStream bsIn(packet->data, packet->length, false);
 					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+					//read the message GUID
+					uint64_t message_guid;
+					bsIn.Read(message_guid);
+					Log::writeToLog(Log::INFO, "Trying to decrypt message with GUID ", message_guid);
+	
 					Fingerprint fingerprint = Fingerprint(bsIn);
 					//read bytes in
 					std::vector<unsigned char> cipherCiphertext;
@@ -391,7 +401,7 @@ void LocalNoiseInterface::handlePacket(void)
 						cipherCiphertext.push_back(cur);
 
 					//decrypt it!!!
-					std::vector<unsigned char> ciphertext = crypto->decryptSymmetric(outgoingData[packet->guid].sharedKey, cipherCiphertext);
+					std::vector<unsigned char> ciphertext = crypto->decryptSymmetric((outgoingData[packet->guid])[message_guid].sharedKey, cipherCiphertext);
 					//expand into envelope
 					Envelope envelope = Envelope(ciphertext);
 					//and decrypt envelope
@@ -399,7 +409,7 @@ void LocalNoiseInterface::handlePacket(void)
 					//save message
 					Message newMessage;
 					newMessage.to = fingerprint;
-					newMessage.from = outgoingData[packet->guid].otherKey;
+					newMessage.from = (outgoingData[packet->guid])[message_guid].otherKey;
 					newMessage.message = plaintext;
 					incomingMessages.push_back(newMessage);
 					//now try pushing the callbacks
@@ -408,10 +418,10 @@ void LocalNoiseInterface::handlePacket(void)
 						(*it)->MessageRecieved(newMessage);
 					}
 					//remove shared key, we're done with it
-					outgoingData.erase(packet->guid);
+					(outgoingData[packet->guid]).erase(message_guid);
 					//Append extra NULL so it's a string
 					plaintext.push_back(0);
-					Log::writeToLog(Log::INFO, "Recieved plaintext: ", (char*)plaintext.data());
+					Log::writeToLog(Log::INFO, "Recieved plaintext for message GUID ", message_guid, ": ", (char*)plaintext.data());
 
 					break;
 				}
@@ -469,29 +479,30 @@ void LocalNoiseInterface::verifyChallenge(const Fingerprint & fingerprint, const
 	}
 }
 
-void LocalNoiseInterface::sendEphemeralPublicKey(const Fingerprint& fingerprint)
+void LocalNoiseInterface::sendEphemeralPublicKey(const Fingerprint& fingerprint, uint64_t message_id)
 {
-	Log::writeToLog(Log::INFO, "Sending ephemeral key to system owning public key ", fingerprint.toString());
+	Log::writeToLog(Log::INFO, "Sending ephemeral key to system owning public key ", fingerprint.toString(), " as part of message ", message_id);
 
 	RakNet::RakNetGUID system = verifiedSystems[fingerprint];
 
-	sendEphemeralPublicKey(system);
+	sendEphemeralPublicKey(system, message_id);
 	
 }
 
-void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system)
+void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system, uint64_t message_id)
 {
 	Log::writeToLog(Log::INFO, "Sending ephemeral key to system ", system.ToString());
 	RakNet::BitStream bs;
 	bs.Write((RakNet::MessageID)ID_SEND_EPHEMERAL_PUBKEY);
 	//Write our ephemeral key for this transfer
-	std::vector<unsigned char> ourEphemeralKey = CryptoHelpers::ecPublicKeyToBytes(outgoingData[system].ourEphemeralKey);
-	std::vector<unsigned char> ourSignature = crypto->signMessage(ourEncryptionKeys[outgoingData[system].ourKey], ourEphemeralKey);
+	std::vector<unsigned char> ourEphemeralKey = CryptoHelpers::ecPublicKeyToBytes((outgoingData[system])[message_id].ourEphemeralKey);
+	std::vector<unsigned char> ourSignature = crypto->signMessage(ourEncryptionKeys[(outgoingData[system])[message_id].ourKey], ourEphemeralKey);
 
-	//now send our fingerprint along, then size of signature, then our ephemeral key
+	//now send the message ID, then our fingerprint along, then size of signature, then our ephemeral key
 
-	outgoingData[system].ourKey.toBitStream(bs);
-	outgoingData[system].otherKey.toBitStream(bs);
+	bs.Write(message_id);
+	(outgoingData[system])[message_id].ourKey.toBitStream(bs);
+	(outgoingData[system])[message_id].otherKey.toBitStream(bs);
 
 	uint32_t signatureSize = ourSignature.size();
 	bs.Write(signatureSize);
@@ -506,19 +517,21 @@ void LocalNoiseInterface::sendEphemeralPublicKey(RakNet::RakNetGUID system)
 	network->sendBitStream(&bs, system, false);
 }
 
-void LocalNoiseInterface::sendEncryptedData(const Fingerprint & fingerprint)
+void LocalNoiseInterface::sendEncryptedData(const Fingerprint & fingerprint, uint64_t message_id)
 {
 	Log::writeToLog(Log::INFO, "Sending encrypted data to system ", fingerprint.toString());
 	RakNet::BitStream bs;
 	bs.Write((RakNet::MessageID)ID_SEND_ENCRYPTED_DATA);
+	//write the GUID
+	bs.Write(message_id);
 	//see if we have a shared secret and a verified system
 	fingerprint.toBitStream(bs);
-	if (verifiedSystems.count(fingerprint) && outgoingData[verifiedSystems[fingerprint]].sharedKey.key.size() > 0)
+	if (verifiedSystems.count(fingerprint) && (outgoingData[verifiedSystems[fingerprint]])[message_id].sharedKey.key.size() > 0)
 	{
 		//First make an encrypted envelope
-		Envelope envelope = crypto->encryptAsymmetric(&(otherEncryptionKeys[fingerprint]), outgoingData[verifiedSystems[fingerprint]].data);
+		Envelope envelope = crypto->encryptAsymmetric(&(otherEncryptionKeys[fingerprint]), (outgoingData[verifiedSystems[fingerprint]])[message_id].data);
 		//and encrypt it with shared secret
-		std::vector<unsigned char> pfsResult = crypto->encryptSymmetric(outgoingData[verifiedSystems[fingerprint]].sharedKey, envelope.toBytes());
+		std::vector<unsigned char> pfsResult = crypto->encryptSymmetric((outgoingData[verifiedSystems[fingerprint]])[message_id].sharedKey, envelope.toBytes());
 		//send it along
 		for (unsigned int i = 0; i < pfsResult.size(); ++i)
 			bs.Write(pfsResult[i]);
@@ -595,20 +608,23 @@ void LocalNoiseInterface::sendData(const Fingerprint& ourFingerprint, const Fing
 		return;
 	}
 
+	//generate a GUID for this message
+	uint64_t guid = RandomHelpers::GenerateGUID();
 
-	outgoingData[verifiedSystems[otherFingerprint]].ourKey = ourFingerprint;
-	outgoingData[verifiedSystems[otherFingerprint]].otherKey = otherFingerprint;
-	outgoingData[verifiedSystems[otherFingerprint]].otherSystem = verifiedSystems[otherFingerprint];
+
+	(outgoingData[verifiedSystems[otherFingerprint]])[guid].ourKey = ourFingerprint;
+	(outgoingData[verifiedSystems[otherFingerprint]])[guid].otherKey = otherFingerprint;
+	(outgoingData[verifiedSystems[otherFingerprint]])[guid].otherSystem = verifiedSystems[otherFingerprint];
 	//Now store the data before kicking off the exchanges
-	outgoingData[verifiedSystems[otherFingerprint]].data = data;
+	(outgoingData[verifiedSystems[otherFingerprint]])[guid].data = data;
 
 	//generate us a ephermeral key to send it along
 	openssl::EVP_PKEY* newEpehemeralKey = 0;
 	crypto->generateEphemeralKeypair(&newEpehemeralKey);
 	//save it
-	outgoingData[verifiedSystems[otherFingerprint]].ourEphemeralKey = newEpehemeralKey;
+	(outgoingData[verifiedSystems[otherFingerprint]])[guid].ourEphemeralKey = newEpehemeralKey;
 	//and send it along
-	sendEphemeralPublicKey(otherFingerprint);
+	sendEphemeralPublicKey(otherFingerprint, guid);
 }
 
 Fingerprint LocalNoiseInterface::getFingerprint(const RakNet::RakNetGUID& system)
