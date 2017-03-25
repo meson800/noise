@@ -8,6 +8,8 @@ class Helpers
 public:
 	static unsigned int bytesToUINT(const unsigned char* bytes);
 	static std::vector<unsigned char> uintToBytes(unsigned int num);
+	static uint64_t bytesToUINT64(const unsigned char* bytes);
+	static std::vector<unsigned char> uint64ToBytes(uint64_t num);
 	static void uintToBytes(unsigned int num, std::vector<unsigned char>& bytes);
 	static std::vector<unsigned char> stringToBytes(const std::string& str);
 	static void sleep_ms(unsigned int ms);

@@ -18,6 +18,28 @@ unsigned int Helpers::bytesToUINT(const unsigned char * bytes)
 	return ( (bytes[0] << 24) + (bytes[1] << 16) + (bytes[2] << 8) + bytes[3]);
 }
 
+uint64_t Helpers::bytesToUINT64(const unsigned char * bytes)
+{
+	return ( (bytes[0] << 56) + (bytes[1] << 48) + (bytes[2] << 40) + (bytes[3] << 32)
+		+(bytes[4] << 24) + (bytes[5] << 16) + (bytes[6] << 8) + bytes[7]);
+}
+
+std::vector<unsigned char> Helpers::uint64ToBytes(uint64_t num)
+{
+	std::vector<unsigned char> result;
+	result.push_back((num >> 56) & 0xFF);
+	result.push_back((num >> 48) & 0xFF);
+	result.push_back((num >> 40) & 0xFF);
+	result.push_back((num >> 32) & 0xFF);
+	result.push_back((num >> 24) & 0xFF);
+	result.push_back((num >> 16) & 0xFF);
+	result.push_back((num >> 8) & 0xFF);
+	result.push_back(num & 0xFF);
+	
+	return result;
+}
+	
+
 std::vector<unsigned char> Helpers::uintToBytes(unsigned int num)
 {
 	std::vector<unsigned char> result;
