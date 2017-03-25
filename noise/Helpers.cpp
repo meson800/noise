@@ -20,8 +20,10 @@ unsigned int Helpers::bytesToUINT(const unsigned char * bytes)
 
 uint64_t Helpers::bytesToUINT64(const unsigned char * bytes)
 {
-	return ( (bytes[0] << 56) + (bytes[1] << 48) + (bytes[2] << 40) + (bytes[3] << 32)
-		+(bytes[4] << 24) + (bytes[5] << 16) + (bytes[6] << 8) + bytes[7]);
+	return ( (static_cast<uint64_t>(bytes[0]) << 56) + (static_cast<uint64_t>(bytes[1]) << 48) 
+		+ (static_cast<uint64_t>(bytes[2]) << 40) + (static_cast<uint64_t>(bytes[3]) << 32)
+		+ (static_cast<uint64_t>(bytes[4]) << 24) + (static_cast<uint64_t>(bytes[5]) << 16)
+		+ (static_cast<uint64_t>(bytes[6]) << 8) + static_cast<uint64_t>(bytes[7]));
 }
 
 std::vector<unsigned char> Helpers::uint64ToBytes(uint64_t num)
