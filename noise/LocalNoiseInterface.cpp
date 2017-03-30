@@ -603,7 +603,7 @@ void LocalNoiseInterface::sendData(const Fingerprint& ourFingerprint, const Fing
 {
 	//Start off by even checking if we have that fingerprint avaliable and a verified system to send it to
 	std::lock_guard<std::mutex> lock(mux);
-	if (!otherEncryptionKeys.count(otherFingerprint) && !verifiedSystems.count(otherFingerprint))
+	if (!otherEncryptionKeys.count(otherFingerprint) || !verifiedSystems.count(otherFingerprint))
 	{
 		return;
 	}
